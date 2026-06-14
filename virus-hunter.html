@@ -1,0 +1,2848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Virus Hunter</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #0a0a12;
+    overflow: hidden;
+    height: 100%;
+    cursor: none;
+    font-family: "Segoe UI", system-ui, sans-serif;
+  }
+  #game {
+    display: block;
+    background: radial-gradient(circle at 50% 50%, #14141f 0%, #08080e 100%);
+  }
+  #hud {
+    position: fixed;
+    top: 12px;
+    left: 14px;
+    color: #e8e8f0;
+    font-size: 15px;
+    text-shadow: 0 1px 3px #000;
+    pointer-events: none;
+    line-height: 1.5;
+    user-select: none;
+  }
+  #hud .big { font-size: 22px; font-weight: 700; }
+  #hud .label { color: #9aa; }
+  #overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    text-align: center;
+    background: rgba(5,5,12,0.75);
+    user-select: none;
+  }
+  #overlay h1 { font-size: 46px; margin: 0 0 8px; letter-spacing: 1px; }
+  #overlay p { font-size: 17px; color: #bcd; margin: 4px 0; max-width: 460px; }
+  #overlay .hint { margin-top: 22px; color: #7af; font-size: 16px; }
+  .hidden { display: none !important; }
+
+  #upgrade {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(5,5,12,0.82);
+    color: #fff;
+    cursor: default;
+    user-select: none;
+  }
+  #upgrade h2 {
+    font-size: 30px; margin: 0 0 6px; letter-spacing: 1px;
+  }
+  #upgrade .sub { color: #9ab; margin: 0 0 26px; font-size: 15px; }
+  #cards { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
+  .card {
+    width: 200px;
+    background: linear-gradient(160deg, #1c1c2b, #12121c);
+    border: 2px solid #33405e;
+    border-radius: 14px;
+    padding: 22px 18px;
+    cursor: pointer;
+    transition: transform .12s, border-color .12s, box-shadow .12s;
+  }
+  .card:hover {
+    transform: translateY(-6px);
+    border-color: #ffd84a;
+    box-shadow: 0 8px 24px rgba(255,216,74,0.25);
+  }
+  .card .icon { font-size: 34px; margin-bottom: 10px; }
+  .card .name { font-size: 19px; font-weight: 700; margin-bottom: 8px; color: #ffe27a; }
+  .card .desc { font-size: 14px; color: #bcd; line-height: 1.45; }
+
+  #admin {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(5,5,12,0.86);
+    color: #fff;
+    cursor: default;
+    user-select: none;
+  }
+  #admin h2 { font-size: 28px; margin: 0 0 4px; letter-spacing: 1px; color: #9ad8ff; }
+  #admin .sub { color: #9ab; margin: 0 0 20px; font-size: 14px; }
+  .adminGroup { margin: 10px 0; text-align: center; }
+  .adminLabel { color: #88a; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+  #adminUpgrades, #adminActions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; max-width: 620px; }
+  .abtn {
+    background: #1c2336;
+    border: 1px solid #3a4a6e;
+    color: #dfe8ff;
+    border-radius: 9px;
+    padding: 10px 14px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background .1s, border-color .1s, transform .1s;
+  }
+  .abtn:hover { background: #2a3756; border-color: #6fa8ff; transform: translateY(-2px); }
+  .abtn.act { background: #3a2330; border-color: #ff7a9a; }
+  .abtn.act:hover { border-color: #ffb0c2; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud">
+  <div class="big">Wave <span id="wave">1</span></div>
+  <div><span class="label">HP</span> <span id="hp">100</span></div>
+  <div><span class="label">Score</span> <span id="score">0</span></div>
+  <div><span class="label">Viruses</span> <span id="enemies">0</span></div>
+</div>
+<div id="overlay">
+  <h1>VIRUS HUNTER</h1>
+  <p>You are the cursor. Move with <b>WASD</b>. Hold <b>Space</b> to fire yellow orbs (auto-aimed at the nearest virus).</p>
+  <p>Survive the waves of red <b>viruses</b> that chase you across the open world.</p>
+  <p class="hint">Press Space or click to start</p>
+</div>
+<div id="upgrade" class="hidden">
+  <h2>WAVE CLEARED</h2>
+  <p class="sub">Choose an upgrade</p>
+  <div id="cards"></div>
+</div>
+<div id="admin" class="hidden">
+  <h2>⚙ ADMIN PANEL</h2>
+  <p class="sub">Press P to close</p>
+  <div class="adminGroup"><div class="adminLabel">Grab upgrade</div><div id="adminUpgrades"></div></div>
+  <div class="adminGroup"><div class="adminLabel">Actions</div><div id="adminActions"></div></div>
+</div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+let W = 0, H = 0;
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ---- World (open world, larger than screen, camera follows player) ----
+const WORLD = 4000; // world is WORLD x WORLD, centered at 0,0
+
+// ---- Input ----
+const mouse = { x: W / 2, y: H / 2, down: false };
+canvas.addEventListener('mousemove', e => {
+  mouse.x = e.clientX;
+  mouse.y = e.clientY;
+});
+canvas.addEventListener('mousedown', () => {
+  mouse.down = true;
+  // dismiss a CLICK ME popup if clicked
+  if (clickBox && mouse.x >= clickBox.x && mouse.x <= clickBox.x + clickBox.w &&
+      mouse.y >= clickBox.y && mouse.y <= clickBox.y + clickBox.h) {
+    clickBox = null;
+    clickTimer = 8 + Math.random() * 2;
+  }
+});
+window.addEventListener('mouseup', () => { mouse.down = false; });
+
+// ---- Keyboard (WASD to move, Space to shoot) ----
+const keys = { up: false, down: false, left: false, right: false, shoot: false };
+function setKey(e, val) {
+  switch (e.code) {
+    case 'KeyW': case 'ArrowUp':    keys.up = val; break;
+    case 'KeyS': case 'ArrowDown':  keys.down = val; break;
+    case 'KeyA': case 'ArrowLeft':  keys.left = val; break;
+    case 'KeyD': case 'ArrowRight': keys.right = val; break;
+    case 'Space':
+      keys.shoot = val;
+      e.preventDefault();
+      // Space also starts / restarts the game from a menu
+      if (val && !running && !inUpgrade && !inAdmin) startGame();
+      break;
+    case 'KeyP':
+      if (val) toggleAdmin();
+      return;
+    case 'ShiftLeft': case 'ShiftRight':
+      if (val) tryDash();
+      return;
+    default: return;
+  }
+  if (e.code.startsWith('Arrow')) e.preventDefault();
+}
+window.addEventListener('keydown', e => setKey(e, true));
+window.addEventListener('keyup', e => setKey(e, false));
+
+// ---- Sound (synthesized, no files) ----
+let audioCtx = null;
+function initAudio() {
+  if (audioCtx) { if (audioCtx.state === 'suspended') audioCtx.resume(); return; }
+  try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { audioCtx = null; }
+}
+function tone(freq, dur, type, vol, slideTo) {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  osc.type = type || 'square';
+  osc.frequency.setValueAtTime(freq, t);
+  if (slideTo) osc.frequency.exponentialRampToValueAtTime(Math.max(1, slideTo), t + dur);
+  g.gain.setValueAtTime(vol || 0.1, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  osc.connect(g); g.connect(audioCtx.destination);
+  osc.start(t); osc.stop(t + dur + 0.02);
+}
+let _lastShoot = 0;
+function sfx(name) {
+  if (!audioCtx) return;
+  switch (name) {
+    case 'shoot': {
+      const now = performance.now();
+      if (now - _lastShoot < 45) return; // throttle rapid fire
+      _lastShoot = now;
+      tone(440, 0.05, 'square', 0.035, 300); break;
+    }
+    case 'kill': tone(180, 0.12, 'triangle', 0.07, 70); break;
+    case 'hurt': tone(140, 0.18, 'sawtooth', 0.12, 55); break;
+    case 'dash': tone(500, 0.14, 'sine', 0.1, 1100); break;
+    case 'laser': tone(820, 0.22, 'sawtooth', 0.05, 180); break;
+    case 'upgrade': tone(523, 0.1, 'sine', 0.12); tone(784, 0.14, 'sine', 0.1, 880); break;
+    case 'wave': tone(330, 0.1, 'sine', 0.09, 460); break;
+    case 'bossAppear': tone(70, 0.7, 'sawtooth', 0.2, 220); tone(140, 0.7, 'square', 0.1, 90); break;
+    case 'bossDeath': tone(320, 0.5, 'sawtooth', 0.2, 40); tone(120, 0.6, 'square', 0.12, 30); break;
+    case 'summon': tone(130, 0.3, 'square', 0.14, 320); break;
+    case 'bossReturn': tone(220, 0.3, 'square', 0.14, 560); break;
+  }
+}
+
+// ---- Boss music: a looping ominous sequence that plays during boss fights ----
+let musicStep = 0, musicTimer = 0;
+const BOSS_BASS = [110.00, 110.00, 130.81, 110.00, 146.83, 138.59, 130.81, 123.47]; // A2-ish minor riff
+const BOSS_ARP = [220, 261.63, 329.63, 261.63];
+function updateMusic(dt) {
+  if (!audioCtx) return;
+  const bossActive = !!bossIntro || viruses.some(v => v.isBoss);
+  if (!bossActive) { musicTimer = 0; musicStep = 0; return; }
+  musicTimer -= dt;
+  if (musicTimer <= 0) {
+    musicTimer = 0.21;
+    const bass = BOSS_BASS[musicStep % BOSS_BASS.length];
+    tone(bass, 0.2, 'sawtooth', 0.05, bass * 0.98);          // driving bassline
+    if (musicStep % 2 === 0) tone(BOSS_ARP[(musicStep / 2) % BOSS_ARP.length], 0.12, 'square', 0.022); // arpeggio
+    if (musicStep % 8 === 0) tone(55, 0.4, 'sine', 0.06);    // deep kick
+    musicStep++;
+  }
+}
+
+// ---- Game state ----
+const player = {
+  x: 0, y: 0,           // world position
+  r: 10,
+  hp: 30, maxHp: 30,
+  fireCooldown: 0,
+  fireRate: 0.42,       // seconds between shots (lower fire rate)
+  bulletSpeed: 620,
+  bulletDamage: 25,
+  speed: 240,           // max world units / sec the cursor can move (slow)
+  flash: 0,             // damage flash timer
+  shotgun: 0,           // extra orbs fired per shot
+  pierce: 0,            // extra enemies each orb can pass through
+  spread: 0.28,         // shotgun aim scatter (radians); Focus lowers it
+  laser: 0,             // laser upgrade level (0 = none)
+  laserCooldown: 0,     // current laser charge timer
+  dash: 0,              // dash upgrade level (0 = none)
+  dashCooldown: 0,      // current dash cooldown
+  dashTime: 0,          // remaining active-dash time (>0 = invulnerable)
+  dashDir: 0,           // dash direction
+  dashHits: null,       // viruses already hit this dash
+  lifesteal: 0,         // life-steal level (5% per level)
+  explosive: 0,         // explosive-bullets level
+  lockout: 0,           // can't-attack timer (ransomware keys)
+  cannon: 0,            // cannon level (0 = none)
+  cannonCooldown: 0,
+  firewallSqs: [],      // orbiting fire squares
+  firewallAngle: 0,
+  homing: 0,            // bullet homing level
+};
+function laserMax() { return Math.max(0.8, 2.5 - (player.laser - 1) * 0.4); }
+function dashMax() { return Math.max(1.0, 2.6 - (player.dash - 1) * 0.4); }
+function cannonMax() { return Math.max(0.7, 2.2 - (player.cannon - 1) * 0.3); }
+let orbs = [];        // player bullets
+let beams = [];       // laser beam visuals
+let drones = [];      // mini auto-firing helpers
+let enemyOrbs = [];   // malware projectiles
+let enemyBeams = [];  // cyan malware lasers
+let viruses = [];     // enemies
+let particles = [];   // visual fx
+let indicators = [];  // spawn-direction warnings
+let stars = [];       // background decoration in world space
+
+let camX = 0, camY = 0;
+let wave = 0;
+let score = 0;
+let enemiesToSpawn = 0;
+let spawnTimer = 0;
+let running = false;
+let inUpgrade = false;
+let inAdmin = false;
+let virusId = 0;
+let boss = null;       // current boss object (null when none)
+const BOSS_ORDER = ['seek', 'smile', 'intruption', 'mine', 'proto'];
+let bossWaves = new Set();
+let clickBox = null;   // "CLICK ME" popup (Intruption stage 2)
+let clickTimer = 9;
+let bossIntro = null;  // boss-summon cinematic state
+let introFx = [];      // particles being absorbed during a boss summon
+let shockwaves = [];   // expanding rings (boss deaths)
+let screenFlash = null;// brief full-screen tint
+let bossCard = null;   // big name-card reveal
+let slowmo = 0;        // slow-motion timer (real seconds)
+let shakeTime = 0, shakeDur = 0, shakeMag = 0, shakeX = 0, shakeY = 0;
+let lastTime = 0;
+
+function addShake(mag, dur) {
+  shakeMag = Math.max(shakeMag, mag);
+  shakeDur = Math.max(shakeDur, dur);
+  shakeTime = Math.max(shakeTime, dur);
+}
+
+const overlay = document.getElementById('overlay');
+const upgradeEl = document.getElementById('upgrade');
+const adminEl = document.getElementById('admin');
+
+function initStars() {
+  stars = [];
+  for (let i = 0; i < 700; i++) {
+    stars.push({
+      x: (Math.random() - 0.5) * WORLD,
+      y: (Math.random() - 0.5) * WORLD,
+      s: Math.random() * 1.8 + 0.4,
+      a: Math.random() * 0.5 + 0.2,
+    });
+  }
+}
+
+function startGame() {
+  initAudio();
+  player.x = 0; player.y = 0;
+  player.maxHp = 30;
+  player.hp = player.maxHp;
+  player.fireCooldown = 0;
+  player.flash = 0;
+  player.fireRate = 0.42;
+  player.bulletDamage = 25;
+  player.shotgun = 0;
+  player.pierce = 0;
+  player.spread = 0.28;
+  player.laser = 0;
+  player.laserCooldown = 0;
+  player.dash = 0;
+  player.dashCooldown = 0;
+  player.dashTime = 0;
+  player.lifesteal = 0;
+  player.explosive = 0;
+  player.lockout = 0;
+  player.cannon = 0;
+  player.cannonCooldown = 0;
+  player.firewallSqs = [];
+  player.firewallAngle = 0;
+  player.homing = 0;
+  inUpgrade = false;
+  inAdmin = false;
+  boss = null;
+  bossWaves = new Set();
+  clickBox = null;
+  clickTimer = 9;
+  bossIntro = null;
+  introFx = [];
+  shockwaves = [];
+  screenFlash = null;
+  bossCard = null;
+  slowmo = 0;
+  shakeTime = 0;
+  upgradeEl.classList.add('hidden');
+  adminEl.classList.add('hidden');
+  orbs = []; beams = []; drones = []; enemyOrbs = []; enemyBeams = []; viruses = []; particles = []; indicators = [];
+  wave = 0; score = 0;
+  enemiesToSpawn = 0; spawnTimer = 0;
+  initStars();
+  running = true;
+  overlay.classList.add('hidden');
+  nextWave();
+  lastTime = performance.now();
+  requestAnimationFrame(loop);
+}
+
+function gameOver() {
+  running = false;
+  overlay.classList.remove('hidden');
+  overlay.innerHTML =
+    '<h1>YOU WERE INFECTED</h1>' +
+    '<p>You reached <b>Wave ' + wave + '</b> with a score of <b>' + score + '</b>.</p>' +
+    '<p class="hint">Press Space or click to play again</p>';
+}
+
+// ---- Waves ----
+// how often the player gets to pick an upgrade
+function offerUpgrade(w) {
+  if (bossWaves.has(w)) return true; // always after a boss
+  if (w <= 10) return true;          // every wave early
+  if (w <= 30) return w % 2 === 0;   // every 2nd wave
+  return w % 3 === 0;                // every 3rd wave later
+}
+
+function nextWave() {
+  wave++;
+  spawnTimer = 0;
+  sfx('wave');
+  document.getElementById('wave').textContent = wave;
+  if (wave % 10 === 0) {
+    // boss wave: ONLY on multiples of 10. Cycles through the set in order:
+    // 10 Seek, 20 Smile, 30 Intruption, 40 Mine, 50 Proto, 60 Seek, ...
+    enemiesToSpawn = 0;
+    bossWaves.add(wave);
+    const kind = BOSS_ORDER[(wave / 10 - 1) % BOSS_ORDER.length];
+    startBossIntro(kind);
+  } else {
+    enemiesToSpawn = 6 + wave * 4;     // grows each wave
+  }
+}
+
+const BOSS_COLORS = { seek: '#ff2e6e', smile: '#f3f3fb', intruption: '#ffd23a', mine: '#3b6bff', proto: '#b06bff' };
+const VIRUS_PALETTE = ['#ff3b3b', '#ff9a9a', '#9c1414', '#3b78ff', '#3ad54a', '#b14bff', '#2ee6e6', '#ffcf33', '#ff8c1a', '#19c3a6'];
+
+// begin the boss-summon buildup, absorbing particles to where the player is
+function startBossIntro(kind) {
+  const proto = kind === 'proto';
+  const dur = proto ? 10 : 5;
+  bossIntro = { x: player.x, y: player.y, t: dur, dur, kind, color: BOSS_COLORS[kind], proto };
+  bossWarn();
+}
+
+function spawnAbsorb(cx, cy, color, big) {
+  const angle = Math.random() * Math.PI * 2;
+  const dist = 240 + Math.random() * 280;
+  introFx.push({ cx, cy, angle, dist, speed: 170 + Math.random() * 150, color, size: big ? 5 + Math.random() * 4 : 2 });
+}
+
+function spawnShockwave(x, y, maxR, color, life) {
+  shockwaves.push({ x, y, r: 0, maxR, life, maxLife: life, color });
+}
+
+// unique-ish death burst per boss type. `final` = no more copies of this boss.
+function bossDeathFx(v) {
+  // is this the last boss of its kind on the field?
+  const final = !viruses.some(o => o !== v && o.isBoss && o.type === v.type);
+  if (v.type === 'I_See_You_Exe') {
+    spawnShockwave(v.x, v.y, 300, '#ff2e6e', 0.7);
+    spawnShockwave(v.x, v.y, 190, '#ff9ab6', 0.5);
+    spawnShockwave(v.x, v.y, 110, '#fff', 0.35);
+    spawnParticles(v.x, v.y, '#ff2e6e', 90, 420);
+    spawnParticles(v.x, v.y, '#ffffff', 30, 240);
+    screenFlash = { color: '255,46,110', life: 0.45, maxLife: 0.45 };
+  } else if (v.type === 'smile_json') {
+    spawnShockwave(v.x, v.y, 280, '#ffffff', 0.7);
+    spawnShockwave(v.x, v.y, 170, '#cfd2ea', 0.45);
+    spawnParticles(v.x, v.y, '#f3f3fb', 110, 360);
+    screenFlash = { color: '255,255,255', life: 0.5, maxLife: 0.5 };
+  } else if (v.type === 'Intruption_Jpeg') {
+    spawnShockwave(v.x, v.y, 250, '#ffd23a', 0.55);
+    spawnShockwave(v.x, v.y, 160, '#ff3b3b', 0.45);
+    spawnParticles(v.x, v.y, '#ffd23a', 80, 400);
+    spawnParticles(v.x, v.y, '#ff3b3b', 40, 300);
+    screenFlash = { color: '255,210,58', life: 0.4, maxLife: 0.4 };
+  } else if (v.type === 'Its_Mine_Now') {
+    spawnShockwave(v.x, v.y, 270, '#3b6bff', 0.6);
+    spawnShockwave(v.x, v.y, 170, '#ffb13b', 0.45);
+    spawnParticles(v.x, v.y, '#3b6bff', 80, 400);
+    spawnParticles(v.x, v.y, '#ffb13b', 36, 280);
+    screenFlash = { color: '60,110,255', life: 0.45, maxLife: 0.45 };
+  } else if (v.type === 'Proto_Type') {
+    // the finale — multiple staggered rings + huge multicoloured burst
+    for (let r = 0; r < 4; r++) spawnShockwave(v.x, v.y, 200 + r * 130, ['#b06bff', '#fff', '#ff2e6e', '#3b6bff'][r], 0.7 + r * 0.12);
+    spawnParticles(v.x, v.y, '#b06bff', 140, 600);
+    for (const c of ['#ff2e6e', '#ffd23a', '#3b6bff', '#f3f3fb']) spawnParticles(v.x, v.y, c, 40, 480);
+    screenFlash = { color: '255,255,255', life: 0.8, maxLife: 0.8 };
+  }
+  const epic = v.type === 'Proto_Type';
+  addShake(epic ? 55 : final ? 34 : 16, epic ? 1.4 : final ? 0.7 : 0.35);
+  if (final) sfx('bossDeath');
+  if (final) {
+    slowmo = epic ? 1.6 : 0.9;
+    bossCard = { title: v.label, subtitle: epic ? 'THE VIRUS IS PURGED' : 'DEFEATED', life: epic ? 4 : 2.4, maxLife: epic ? 4 : 2.4, color: v.color };
+  }
+}
+
+function spawnBoss(px, py) {
+  const half = WORLD / 2 - 60;
+  let x = px !== undefined ? px : player.x + (Math.random() - 0.5) * 600;
+  let y = py !== undefined ? py : player.y - 600;
+  x = Math.max(-half, Math.min(half, x));
+  y = Math.max(-half, Math.min(half, y));
+
+  const baseHp = 50;
+  const hp = baseHp * 2 * 5 * 18;      // 5x a Strong_Virus's health, x10
+
+  boss = {
+    id: virusId++,
+    type: 'I_See_You_Exe',
+    label: '☣ I_See_You_Exe',
+    isBoss: true,
+    shape: 'eye',
+    x, y,
+    r: 90,
+    hp, maxHp: hp,
+    speed: 70,
+    dmg: 3,
+    color: '#ff2e6e', glow: 'rgba(255,46,110,0.22)',
+    // boss-only fields
+    moveTarget: { x, y },
+    moveTimer: 0,
+    attackTimer: 1.0,
+    rapidQueue: 0,
+    rapidTimer: 0,
+    wobble: 0,
+    touchCooldown: 0,
+  };
+  viruses.push(boss);
+  bossWarn();
+  return boss;
+}
+
+function bossWarn() {
+  for (let k = 0; k < 8; k++) {
+    indicators.push({ angle: (k / 8) * Math.PI * 2, life: 1.6, maxLife: 1.6 });
+  }
+}
+
+// Wave-20 boss: a white ":]" square with two charging hands
+function spawnSmileBoss(px, py) {
+  const half = WORLD / 2 - 60;
+  let x = px !== undefined ? px : player.x + (Math.random() - 0.5) * 600;
+  let y = py !== undefined ? py : player.y - 600;
+  x = Math.max(-half, Math.min(half, x));
+  y = Math.max(-half, Math.min(half, y));
+
+  const baseHp = 50;
+  const hp = baseHp * 2 * 5 * 18;
+
+  boss = {
+    id: virusId++,
+    type: 'smile_json',
+    label: ':] smile_json',
+    isBoss: true,
+    shape: 'face',
+    x, y,
+    r: 70,
+    hp, maxHp: hp,
+    speed: 70,
+    dmg: 3,
+    color: '#f3f3fb', glow: 'rgba(230,230,255,0.20)',
+    moveTarget: { x, y },
+    moveTimer: 0,
+    attackTimer: 2.0,
+    wobble: 0,
+    touchCooldown: 0,
+    hands: [
+      { side: -1, x: x - 110, y: y, state: 'idle', timer: 0, vx: 0, vy: 0, hitCooldown: 0 },
+      { side: 1, x: x + 110, y: y, state: 'idle', timer: 0, vx: 0, vy: 0, hitCooldown: 0 },
+    ],
+  };
+  viruses.push(boss);
+  bossWarn();
+  return boss;
+}
+
+// minions summoned by the smile boss
+function spawnMalwareMinion(x, y) {
+  const baseHp = 50;
+  const hp = Math.round(baseHp * 0.6);
+  viruses.push({
+    id: virusId++, type: 'Malware', shape: 'square', x, y, r: 14,
+    hp, maxHp: hp, speed: player.speed * 0.75, dmg: 1,
+    beam: false, beamDmg: 0, splitCount: 0,
+    color: '#3b78ff', glow: 'rgba(60,120,255,0.22)',
+    orbDamage: 1, orbColor: '#4a86ff', orbGlow: 'rgba(70,130,255,0.3)',
+    shootMin: 1.6, shootMax: 3.0, preferDist: 300,
+    strafeDir: Math.random() < 0.5 ? 1 : -1,
+    shootTimer: 1.6 + Math.random() * 1.4,
+    stepTimer: Math.random(), moveAngle: Math.random() * Math.PI * 2,
+    moving: false, moveTime: 0, wobble: Math.random() * Math.PI * 2, touchCooldown: 0,
+  });
+}
+function spawnAdwareMinion(x, y) {
+  const baseHp = 50;
+  const hp = Math.round(baseHp * 0.9);
+  viruses.push({
+    id: virusId++, type: 'Adware', shape: 'triangle', x, y, r: 16,
+    hp, maxHp: hp, speed: player.speed * 0.95, dmg: 1,
+    beam: false, beamDmg: 0, splitCount: 3,
+    color: '#ffcf33', glow: 'rgba(255,207,51,0.22)',
+    orbDamage: 1, orbColor: '#fff', orbGlow: 'rgba(255,255,255,0.3)',
+    shootMin: 9999, shootMax: 9999, preferDist: 300, strafeDir: 1, shootTimer: 9999,
+    stepTimer: Math.random() * 0.6, moveAngle: Math.random() * Math.PI * 2,
+    moving: false, moveTime: 0, wobble: Math.random() * Math.PI * 2, touchCooldown: 0,
+  });
+}
+
+// Wave-30 boss: yellow 6-point star with a red triangle. Shoots 3 then charges.
+// On defeat (stage 1) it splits into 2 smaller copies (stage 2).
+function spawnIntruptionBoss(px, py, stage, hp, r) {
+  if (stage === undefined) {
+    const half = WORLD / 2 - 60;
+    px = Math.max(-half, Math.min(half, player.x + (Math.random() - 0.5) * 600));
+    py = Math.max(-half, Math.min(half, player.y - 600));
+    stage = 1;
+    hp = 50 * 160;
+    r = 64;
+    bossWarn();
+  }
+  const b = {
+    id: virusId++,
+    type: 'Intruption_Jpeg',
+    label: '🖼 Intruption_Jpeg',
+    isBoss: true,
+    shape: 'star',
+    stage,
+    x: px, y: py,
+    r,
+    hp, maxHp: hp,
+    speed: 120,
+    dmg: 3,
+    color: '#ffd23a', glow: 'rgba(255,210,58,0.22)',
+    attackTimer: 1.2,
+    charging: false,
+    chargeTime: 0,
+    chargeDir: 0,
+    streamQueue: 0,
+    streamTimer: 0,
+    streamAngle: 0,
+    wobble: 0,
+    touchCooldown: 0,
+  };
+  viruses.push(b);
+  boss = b;
+  return b;
+}
+
+// Wave-40 boss: ransomware-inspired blue LOCK with an orange keyhole.
+// Teleports near you, fires fast bullets + lasers, and has 2 orbiting keys
+// that lock you out of attacking for 3s on contact.
+function spawnMineBoss(px, py) {
+  const half = WORLD / 2 - 60;
+  let x = px !== undefined ? px : player.x + (Math.random() - 0.5) * 600;
+  let y = py !== undefined ? py : player.y - 600;
+  x = Math.max(-half, Math.min(half, x));
+  y = Math.max(-half, Math.min(half, y));
+
+  boss = {
+    id: virusId++,
+    type: 'Its_Mine_Now',
+    label: '🔒 Its_Mine_Now',
+    isBoss: true,
+    shape: 'lock',
+    x, y,
+    r: 58,
+    hp: 50 * 150, maxHp: 50 * 150,
+    speed: 55,
+    dmg: 3,
+    color: '#3b6bff', glow: 'rgba(60,110,255,0.22)',
+    teleportTimer: 2.2,
+    laserTimer: 3.4,
+    keys: [{ angle: 0 }, { angle: Math.PI }],
+    keyHitCd: 0,
+    wobble: 0,
+    touchCooldown: 0,
+  };
+  viruses.push(boss);
+  return boss;
+}
+
+// Wave-50 FINAL boss: Proto_Type — a snake of 5 white squares, each with a
+// different coloured eye. Summons each past boss as it loses HP.
+const PROTO_EYES = ['#ff2e6e', '#ffd23a', '#3b6bff', '#3ad54a', '#b06bff', '#2ee6e6', '#ff8c1a', '#19c3a6', '#ff63d4', '#7ac5ff'];
+const PROTO_SEGS = 10;
+function spawnProtoBoss(px, py) {
+  const half = WORLD / 2 - 60;
+  let x = px !== undefined ? px : player.x;
+  let y = py !== undefined ? py : player.y - 600;
+  x = Math.max(-half, Math.min(half, x));
+  y = Math.max(-half, Math.min(half, y));
+
+  boss = {
+    id: virusId++,
+    type: 'Proto_Type',
+    label: '☠ Proto_Type',
+    isBoss: true,
+    shape: 'proto',
+    x, y,
+    r: 46,
+    hp: 50 * 260 * 3, maxHp: 50 * 260 * 3,   // x3 health, beefed up
+    speed: 175,
+    dmg: 3,
+    color: '#f3f3fb', glow: 'rgba(230,230,255,0.22)',
+    attackTimer: 1.6,
+    streamQueue: 0, streamTimer: 0, streamAngle: 0,
+    rapidQueue: 0, rapidTimer: 0,
+    trail: [],          // head position history for the snake body
+    heading: Math.random() * Math.PI * 2,  // random wander direction
+    headingTimer: 0,
+    eyesBlank: new Array(PROTO_SEGS).fill(false),
+    phase: 0, summoning: false, summonId: -1, alpha: 1, invuln: false, barHidden: false,
+    wobble: 0,
+    touchCooldown: 0,
+  };
+  viruses.push(boss);
+  return boss;
+}
+
+const PROTO_GUARDIANS = ['seek', 'smile', 'intruption', 'mine'];
+function summonSubBoss(kind, x, y) {
+  const ox = Math.max(-(WORLD / 2 - 60), Math.min(WORLD / 2 - 60, x + (Math.random() - 0.5) * 160));
+  const oy = Math.max(-(WORLD / 2 - 60), Math.min(WORLD / 2 - 60, y + 140));
+  if (kind === 'seek') return spawnBoss(ox, oy);
+  if (kind === 'smile') return spawnSmileBoss(ox, oy);
+  if (kind === 'mine') return spawnMineBoss(ox, oy);
+  return spawnIntruptionBoss(ox, oy, 1, 50 * 60, 56);
+}
+
+// ---- Upgrades ----
+const UPGRADES = [
+  {
+    id: 'Fire_rate', icon: '⚡', name: 'Fire_rate',
+    desc: 'Increases fire rate.',
+    apply: () => { player.fireRate = Math.max(0.07, player.fireRate * 0.8); },
+  },
+  {
+    id: 'Damage_Up', icon: '💥', name: 'Damage_Up',
+    desc: 'Increases orb damage.',
+    apply: () => { player.bulletDamage += 12; },
+  },
+  {
+    id: 'Shotgun', icon: '🔫', name: 'Shotgun',
+    desc: 'Fires 1 more orb, but spreads the aim a bit.',
+    apply: () => { player.shotgun += 1; },
+  },
+  {
+    id: 'Piercing', icon: '🏹', name: 'Piercing',
+    desc: 'Orbs pierce +1 (pass through one more virus).',
+    apply: () => { player.pierce += 1; },
+  },
+  {
+    id: 'Drone', icon: '🛸', name: 'Drone',
+    desc: 'Summons a mini-you that auto-fires for half your damage.',
+    apply: () => {
+      drones.push({
+        angle: Math.random() * Math.PI * 2, // orbit position
+        x: player.x, y: player.y,
+        fireCooldown: Math.random() * 0.3,
+      });
+    },
+  },
+  {
+    id: 'Minigun', icon: '🔥', name: 'Minigun',
+    desc: 'Fire much faster, but each orb deals greatly reduced damage.',
+    apply: () => {
+      player.fireRate = Math.max(0.04, player.fireRate * 0.45);
+      player.bulletDamage = Math.max(1, Math.round(player.bulletDamage * 0.3));
+    },
+  },
+  {
+    id: 'Focus', icon: '🎯', name: 'Focus',
+    desc: 'Lowers orb scattering for tighter aim.',
+    apply: () => { player.spread = Math.max(0.02, player.spread - 0.07); },
+  },
+  {
+    id: 'Lazer', icon: '🔆', name: 'Lazer',
+    desc: 'Adds a laser: long cooldown, pierces infinitely, 1.5× damage.',
+    apply: () => { player.laser += 1; },
+  },
+  {
+    id: 'Dash', icon: '💨', name: 'Dash',
+    desc: 'Press Shift to dash: immune while dashing, and you damage viruses you cross.',
+    apply: () => { player.dash += 1; },
+  },
+  {
+    id: 'Healthy', icon: '💚', name: 'Healthy',
+    desc: '+12 max HP, and heals you for 12.',
+    apply: () => { player.maxHp += 12; player.hp += 12; },
+  },
+  {
+    id: 'Life_steal', icon: '🩸', name: 'Life_steal',
+    desc: '5% chance to gain 1 HP on each kill.',
+    apply: () => { player.lifesteal += 1; },
+  },
+  {
+    id: 'Explosive', icon: '🧨', name: 'Explosive',
+    desc: 'Orbs split into 3 low-damage shards when they hit a virus.',
+    apply: () => { player.explosive += 1; },
+  },
+  {
+    id: 'Fire_wall', icon: '🔥', name: 'Fire_wall',
+    desc: 'Adds 2 red squares that orbit you and burn viruses on contact.',
+    apply: () => { player.firewallSqs.push({ hitCd: 0 }, { hitCd: 0 }); },
+  },
+  {
+    id: 'Cannon', icon: '💣', name: 'Cannon',
+    desc: 'Auto-fires a cannonball that bursts into 5 bullets on impact (+3 per stack).',
+    apply: () => { player.cannon += 1; },
+  },
+  {
+    id: 'Homing_Missle', icon: '🎯', name: 'Homing_Missle',
+    desc: 'Your bullets curve toward nearby viruses (stronger per stack).',
+    apply: () => { player.homing += 1; },
+  },
+];
+
+function showUpgrades() {
+  running = false;
+  inUpgrade = true;
+  mouse.down = false;
+
+  // pick 3 distinct random upgrades
+  const pool = UPGRADES.slice();
+  const picks = [];
+  while (picks.length < 3 && pool.length) {
+    picks.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+  }
+
+  const cards = document.getElementById('cards');
+  cards.innerHTML = '';
+  for (const up of picks) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<div class="icon">' + up.icon + '</div>' +
+      '<div class="name">' + up.name + '</div>' +
+      '<div class="desc">' + up.desc + '</div>';
+    card.addEventListener('click', () => chooseUpgrade(up));
+    cards.appendChild(card);
+  }
+  upgradeEl.classList.remove('hidden');
+}
+
+function chooseUpgrade(up) {
+  up.apply();
+  sfx('upgrade');
+  upgradeEl.classList.add('hidden');
+  inUpgrade = false;
+  running = true;
+  nextWave();
+  lastTime = performance.now();
+  requestAnimationFrame(loop);
+}
+
+// ---- Admin panel (toggle with P) ----
+function toggleAdmin() {
+  if (inUpgrade) return;
+  if (inAdmin) {
+    // close & resume
+    adminEl.classList.add('hidden');
+    inAdmin = false;
+    running = true;
+    lastTime = performance.now();
+    requestAnimationFrame(loop);
+  } else if (running) {
+    // open & pause
+    running = false;
+    inAdmin = true;
+    mouse.down = false; keys.shoot = false;
+    buildAdmin();
+    adminEl.classList.remove('hidden');
+  }
+}
+
+function buildAdmin() {
+  const up = document.getElementById('adminUpgrades');
+  up.innerHTML = '';
+  for (const u of UPGRADES) {
+    const b = document.createElement('div');
+    b.className = 'abtn';
+    b.textContent = u.icon + ' ' + u.name;
+    b.addEventListener('click', () => { u.apply(); });
+    up.appendChild(b);
+  }
+
+  const act = document.getElementById('adminActions');
+  act.innerHTML = '';
+  const actions = [
+    { label: '⏭ Skip wave', fn: () => { viruses = []; enemyOrbs = []; enemyBeams = []; boss = null; enemiesToSpawn = 0; nextWave(); } },
+    { label: '⏩ Skip 5 waves', fn: () => { viruses = []; enemyOrbs = []; enemyBeams = []; boss = null; enemiesToSpawn = 0; for (let i = 0; i < 5; i++) nextWave(); } },
+    { label: '💀 Kill all viruses', fn: () => { viruses = []; enemyOrbs = []; enemyBeams = []; boss = null; } },
+    { label: '☣ Spawn Seek boss', fn: () => { if (!boss) spawnBoss(); } },
+    { label: ':] Spawn Smile boss', fn: () => { if (!boss) spawnSmileBoss(); } },
+    { label: '🖼 Spawn Intruption boss', fn: () => { if (!boss) spawnIntruptionBoss(); } },
+    { label: '🔒 Spawn Mine boss', fn: () => { if (!boss) spawnMineBoss(); } },
+    { label: '☠ Spawn Proto_Type', fn: () => { if (!boss) spawnProtoBoss(); } },
+    { label: '❤ Full heal', fn: () => { player.hp = player.maxHp; } },
+    { label: '🛡 +50 max HP', fn: () => { player.maxHp += 50; player.hp += 50; } },
+  ];
+  for (const a of actions) {
+    const b = document.createElement('div');
+    b.className = 'abtn act';
+    b.textContent = a.label;
+    b.addEventListener('click', () => { a.fn(); });
+    act.appendChild(b);
+  }
+}
+
+function spawnVirus() {
+  // spawn at a random point on a ring just outside the player's view
+  const ang = Math.random() * Math.PI * 2;
+  const dist = 700 + Math.random() * 300;
+  let x = player.x + Math.cos(ang) * dist;
+  let y = player.y + Math.sin(ang) * dist;
+  // keep inside world bounds
+  const half = WORLD / 2 - 40;
+  x = Math.max(-half, Math.min(half, x));
+  y = Math.max(-half, Math.min(half, y));
+
+  // small warning marker showing the direction the virus came from
+  indicators.push({
+    angle: Math.atan2(y - player.y, x - player.x),
+    life: 1.2,
+    maxLife: 1.2,
+  });
+
+  // ----- Pick a virus type -----
+  const baseHp = 50;
+  const baseSpeed = player.speed * (0.92 + Math.random() * 0.18); // about as fast as you
+  let type = 'normal', r = 14, shape = 'circle';
+  let hp = baseHp, speed = baseSpeed;
+  let dmg = 1;  // damage this virus deals (contact and its bullets)
+  let beam = false, beamDmg = 2, splitCount = 0, bulletCount = 5;
+  let color = '#ff3b3b', glow = 'rgba(255,60,60,0.18)';
+  // malware-only fields (defaults harmless for non-malware)
+  let orbDamage = 10, orbColor = '#4a86ff', orbGlow = 'rgba(70,130,255,0.3)';
+  let shootMin = 2.2, shootMax = 3.6, preferDist = 300;
+
+  // Fast/Strong viruses appear from wave 3; malware from wave 7.
+  const roll = wave >= 3 ? Math.random() : 1;
+  if (roll < 0.28) {
+    // Fast_Virus: less health, much faster, lighter colour, a bit smaller
+    type = 'Fast_Virus';
+    hp = Math.round(baseHp * 0.55);
+    speed = baseSpeed * 1.8;
+    dmg = 2;
+    r = 12;
+    color = '#ff9a9a'; glow = 'rgba(255,150,150,0.22)';
+  } else if (roll < 0.52) {
+    // Strong_Virus: double health, slightly slower, darker, slightly bigger
+    type = 'Strong_Virus';
+    hp = Math.round(baseHp * 2);
+    speed = baseSpeed * 0.8;
+    r = 18;
+    color = '#9c1414'; glow = 'rgba(140,15,15,0.24)';
+  } else if (roll < 0.74 && wave >= 5) {
+    // Malware: SQUARE that keeps its distance and shoots orbs.
+    // Base malware unlocks at wave 5, Purple at 7, Green at 8.
+    shape = 'square';
+    const variants = ['blue'];
+    if (wave >= 7) variants.push('purple');
+    if (wave >= 8) variants.push('green');
+    if (wave >= 12) variants.push('cyan');
+    const pick = variants[Math.floor(Math.random() * variants.length)];
+
+    if (pick === 'cyan') {
+      // Cyan_malware: fires a LASER (lasts 2s, 2 dmg) instead of orbs
+      type = 'Cyan_malware';
+      hp = Math.round(baseHp * 0.7);
+      speed = baseSpeed * 0.75;
+      r = 14;
+      color = '#2ee6e6'; glow = 'rgba(46,230,230,0.22)';
+      beam = true; beamDmg = 2;
+      shootMin = 2.8; shootMax = 4.2;
+    } else if (pick === 'green') {
+      // Green_malware: more damage, shoots less, more health
+      type = 'Green_malware';
+      hp = Math.round(baseHp * 1.3);
+      speed = baseSpeed * 0.7;
+      r = 15;
+      color = '#3ad54a'; glow = 'rgba(60,210,80,0.22)';
+      orbDamage = 18; orbColor = '#4ce85f'; orbGlow = 'rgba(80,230,100,0.3)';
+      shootMin = 2.8; shootMax = 4.6;
+    } else if (pick === 'purple') {
+      // Purple_malware: shoots faster, but less health
+      type = 'Purple_malware';
+      hp = Math.round(baseHp * 0.45);
+      speed = baseSpeed * 0.8;
+      r = 14;
+      color = '#b14bff'; glow = 'rgba(170,75,255,0.22)';
+      orbDamage = 9; orbColor = '#c46bff'; orbGlow = 'rgba(190,100,255,0.3)';
+      shootMin = 0.8; shootMax = 1.6;
+    } else {
+      // Malware (base): blue, balanced shooter
+      type = 'Malware';
+      hp = Math.round(baseHp * 0.6);
+      speed = baseSpeed * 0.75;
+      r = 14;
+      color = '#3b78ff'; glow = 'rgba(60,120,255,0.22)';
+      orbDamage = 10; orbColor = '#4a86ff'; orbGlow = 'rgba(70,130,255,0.3)';
+      shootMin = 1.6; shootMax = 3.0;
+    }
+  } else if (roll < 0.88 && wave >= 14) {
+    // Adware: yellow TRIANGLE chaser that splits into 3 minis on death
+    type = 'Adware';
+    shape = 'triangle';
+    hp = Math.round(baseHp * 0.9);
+    speed = baseSpeed * 0.95;
+    r = 16;
+    color = '#ffcf33'; glow = 'rgba(255,207,51,0.22)';
+    splitCount = 3;
+  } else if (roll < 0.93 && wave >= 22) {
+    // Peer: acts like Seek (drifts + radial bursts) but weaker, x4 less HP
+    if (wave >= 35 && Math.random() < 0.5) {
+      // Peer_alf2: shoots 8 bullets and has 50% more HP
+      type = 'Peer_alf2';
+      hp = Math.round(50 * 25 * 1.5);
+      bulletCount = 8;
+      color = '#12a8c9'; glow = 'rgba(18,168,201,0.22)';
+    } else {
+      type = 'Peer';
+      hp = Math.round(50 * 25);   // a quarter of Seek's health
+      bulletCount = 5;
+      color = '#19c3a6'; glow = 'rgba(25,195,166,0.22)';
+    }
+    shape = 'eye';
+    speed = 80;
+    dmg = 2;
+    r = 28;
+  } else if (roll < 0.97 && wave >= 24) {
+    // Great_Adware: orange triangle, bigger, splits into 5 minis
+    type = 'Great_Adware';
+    shape = 'triangle';
+    hp = Math.round(baseHp * 1.4);
+    speed = baseSpeed * 0.9;
+    r = 22;
+    color = '#ff8c1a'; glow = 'rgba(255,140,26,0.22)';
+    splitCount = 5;
+  }
+
+  orbDamage = dmg;  // bullets deal the same as the virus's damage
+
+  viruses.push({
+    id: virusId++,
+    type,
+    shape,
+    x, y,
+    r,
+    hp, maxHp: hp,
+    speed,
+    dmg,
+    beam, beamDmg, splitCount, bulletCount,
+    color, glow,
+    orbDamage, orbColor, orbGlow,
+    shootMin, shootMax, preferDist,
+    // Peer (seek-like) AI fields
+    moveTarget: { x, y }, moveTimer: 0, attackTimer: 1.5,
+    strafeDir: Math.random() < 0.5 ? 1 : -1,
+    shootTimer: shootMin + Math.random() * (shootMax - shootMin),
+    // virus: takes a step toward player every 1-2s with a randomized angle
+    stepTimer: Math.random() * 1.0,     // time until next step decision
+    moveAngle: Math.random() * Math.PI * 2,
+    moving: false,
+    moveTime: 0,
+    wobble: Math.random() * Math.PI * 2,
+    touchCooldown: 0,
+  });
+}
+
+// ---- Helpers ----
+function spawnParticles(x, y, color, count, spd) {
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const s = Math.random() * spd;
+    particles.push({
+      x, y,
+      vx: Math.cos(a) * s,
+      vy: Math.sin(a) * s,
+      life: 0.4 + Math.random() * 0.4,
+      maxLife: 0.8,
+      color,
+      r: Math.random() * 3 + 1,
+    });
+  }
+}
+
+// called when a virus's hp hits 0 (after it's removed from the array)
+function killVirus(v) {
+  sfx('kill');
+  spawnParticles(v.x, v.y, v.color, v.isBoss ? 60 : 18, v.isBoss ? 320 : 200);
+  if (v.isBoss) { score += 200; if (v === boss) boss = null; bossDeathFx(v); }
+  else score += 10;
+  // Life_steal: 5% chance per level to gain 1 HP
+  if (player.lifesteal > 0 && Math.random() < 0.05 * player.lifesteal) {
+    player.hp = Math.min(player.maxHp, player.hp + 1);
+  }
+  // Adware splits into mini adwares
+  for (let k = 0; k < (v.splitCount || 0); k++) spawnMiniAdware(v.x, v.y);
+  // Intruption stage 1 splits into 2 smaller stage-2 copies
+  if (v.type === 'Intruption_Jpeg' && v.stage === 1) {
+    spawnIntruptionBoss(v.x - 90, v.y, 2, Math.round(v.maxHp / 2), v.r * 0.6);
+    spawnIntruptionBoss(v.x + 90, v.y, 2, Math.round(v.maxHp / 2), v.r * 0.6);
+  }
+}
+
+function spawnMiniAdware(x, y) {
+  const baseHp = 50;
+  const hp = Math.max(6, Math.round(baseHp * 0.3));
+  viruses.push({
+    id: virusId++,
+    type: 'Mini_Adware',
+    shape: 'triangle',
+    x: x + (Math.random() - 0.5) * 24,
+    y: y + (Math.random() - 0.5) * 24,
+    r: 9,
+    hp, maxHp: hp,
+    speed: player.speed * (0.95 + Math.random() * 0.2),
+    dmg: 1,
+    beam: false, beamDmg: 0, splitCount: 0,
+    color: '#ffe27a', glow: 'rgba(255,226,122,0.22)',
+    orbDamage: 1, orbColor: '#fff', orbGlow: 'rgba(255,255,255,0.3)',
+    shootMin: 9999, shootMax: 9999, preferDist: 300,
+    strafeDir: 1,
+    shootTimer: 9999,
+    stepTimer: Math.random() * 0.6,
+    moveAngle: Math.random() * Math.PI * 2,
+    moving: false, moveTime: 0,
+    wobble: Math.random() * Math.PI * 2,
+    touchCooldown: 0,
+  });
+}
+
+// ---- Update ----
+function update(dt) {
+  if (player.dashCooldown > 0) player.dashCooldown -= dt;
+
+  if (player.dashTime > 0) {
+    // ----- Dashing: fast burst, invulnerable, damages viruses crossed -----
+    player.dashTime -= dt;
+    const dashSpeed = 1050;
+    player.x += Math.cos(player.dashDir) * dashSpeed * dt;
+    player.y += Math.sin(player.dashDir) * dashSpeed * dt;
+    spawnParticles(player.x, player.y, '#9fd8ff', 2, 40); // trail
+    for (let j = viruses.length - 1; j >= 0; j--) {
+      const v = viruses[j];
+      if (player.dashHits.has(v.id) || v.invuln) continue;
+      if (Math.hypot(v.x - player.x, v.y - player.y) < v.r + player.r + 6) {
+        player.dashHits.add(v.id);
+        v.hp -= 40;
+        spawnParticles(v.x, v.y, v.color, 8, 150);
+        if (v.hp <= 0) { viruses.splice(j, 1); killVirus(v); }
+      }
+    }
+  } else {
+    // Player moves with WASD / arrow keys.
+    let dx = 0, dy = 0;
+    if (keys.up) dy -= 1;
+    if (keys.down) dy += 1;
+    if (keys.left) dx -= 1;
+    if (keys.right) dx += 1;
+    const len = Math.hypot(dx, dy);
+    if (len > 0) {
+      player.x += (dx / len) * player.speed * dt;
+      player.y += (dy / len) * player.speed * dt;
+    }
+  }
+  // damage flash timer
+  if (player.flash > 0) player.flash -= dt;
+  // clamp to world
+  const half = WORLD / 2;
+  player.x = Math.max(-half, Math.min(half, player.x));
+  player.y = Math.max(-half, Math.min(half, player.y));
+
+  // Camera smoothly follows player
+  camX += (player.x - camX) * Math.min(1, dt * 6);
+  camY += (player.y - camY) * Math.min(1, dt * 6);
+
+  // "CLICK ME" popup: appears every 8-10s while an Intruption stage-2 boss
+  // is alive, and blocks the player from attacking until clicked.
+  const stage2 = viruses.some(v => v.type === 'Intruption_Jpeg' && v.stage === 2);
+  if (stage2) {
+    if (!clickBox) {
+      clickTimer -= dt;
+      if (clickTimer <= 0) {
+        const w = W / 3, h = H / 2;
+        clickBox = { x: Math.random() * (W - w), y: 60 + Math.random() * (H - h - 120), w, h };
+      }
+    }
+  } else {
+    clickBox = null;
+    clickTimer = 9;
+  }
+
+  if (player.lockout > 0) player.lockout -= dt;
+  const canAttack = !clickBox && player.lockout <= 0;
+
+  // Firing (blocked while a CLICK ME popup is up or keys locked you out)
+  player.fireCooldown -= dt;
+  if (canAttack && (keys.shoot || mouse.down) && player.fireCooldown <= 0) {
+    fireOrb();
+    sfx('shoot');
+    player.fireCooldown = player.fireRate;
+  }
+
+  // Boss summon cinematic: absorbing particles, then the boss appears
+  if (bossIntro) {
+    bossIntro.t -= dt;
+    if (bossIntro.proto) {
+      // Proto_Type: absorb a swarm of VIRUSES (multicoloured chunks)
+      for (let i = 0; i < 8; i++) {
+        spawnAbsorb(bossIntro.x, bossIntro.y, VIRUS_PALETTE[(Math.random() * VIRUS_PALETTE.length) | 0], Math.random() < 0.5);
+      }
+      if (Math.random() < 0.15) addShake(6 + (10 - bossIntro.t), 0.2);
+    } else {
+      for (let i = 0; i < 4; i++) spawnAbsorb(bossIntro.x, bossIntro.y, bossIntro.color);
+    }
+    if (bossIntro.t <= 0) {
+      const k = bossIntro.kind, bx = bossIntro.x, by = bossIntro.y, col = bossIntro.color;
+      bossIntro = null;
+      if (k === 'seek') spawnBoss(bx, by);
+      else if (k === 'smile') spawnSmileBoss(bx, by);
+      else if (k === 'mine') spawnMineBoss(bx, by);
+      else if (k === 'proto') spawnProtoBoss(bx, by);
+      else spawnIntruptionBoss(bx, by, 1, 50 * 90, 64);
+      const big = k === 'proto';
+      spawnShockwave(bx, by, big ? 480 : 320, col, big ? 0.8 : 0.6);
+      spawnShockwave(bx, by, big ? 300 : 200, '#fff', big ? 0.5 : 0.4);
+      spawnParticles(bx, by, col, big ? 140 : 70, big ? 560 : 420);
+      screenFlash = { color: '255,255,255', life: big ? 0.6 : 0.35, maxLife: big ? 0.6 : 0.35 };
+      addShake(big ? 40 : 22, big ? 1.0 : 0.6);
+      slowmo = big ? 0.9 : 0.5;
+      sfx('bossAppear');
+      if (boss) bossCard = { title: boss.label, subtitle: big ? 'THE FINAL VIRUS' : 'HAS APPEARED', life: big ? 3.0 : 2.2, maxLife: big ? 3.0 : 2.2, color: col };
+    }
+  }
+
+  // absorb particles converge to their centre
+  for (let i = introFx.length - 1; i >= 0; i--) {
+    const p = introFx[i];
+    p.dist -= p.speed * dt;
+    if (p.dist <= 4) introFx.splice(i, 1);
+  }
+  // shockwaves expand and fade
+  for (let i = shockwaves.length - 1; i >= 0; i--) {
+    const sw = shockwaves[i];
+    sw.r += (sw.maxR / sw.maxLife) * dt;
+    sw.life -= dt;
+    if (sw.life <= 0) shockwaves.splice(i, 1);
+  }
+  if (screenFlash) { screenFlash.life -= dt; if (screenFlash.life <= 0) screenFlash = null; }
+  if (bossCard) { bossCard.life -= dt; if (bossCard.life <= 0) bossCard = null; }
+  if (shakeTime > 0) shakeTime -= dt;
+  updateMusic(dt);
+
+  // Spawning
+  if (enemiesToSpawn > 0) {
+    spawnTimer -= dt;
+    if (spawnTimer <= 0) {
+      spawnVirus();
+      enemiesToSpawn--;
+      spawnTimer = 0.18;
+    }
+  } else if (viruses.length === 0 && !bossIntro && !bossCard && slowmo <= 0) {
+    // let any boss death cinematic finish before advancing.
+    // Upgrades come every wave up to 10, every 2nd wave to 30, then every 3rd
+    // (always after a boss wave).
+    if (offerUpgrade(wave)) showUpgrades();
+    else nextWave();
+    return;
+  }
+
+  // Orbs
+  for (let i = orbs.length - 1; i >= 0; i--) {
+    const o = orbs[i];
+    // Homing_Missle: nudge the orb's velocity toward the nearest virus
+    if (player.homing > 0 && !o.child) {
+      const t = nearestVirus(o.x, o.y);
+      if (t) {
+        const sp = Math.hypot(o.vx, o.vy) || 1;
+        const desired = Math.atan2(t.y - o.y, t.x - o.x);
+        const cur = Math.atan2(o.vy, o.vx);
+        let diff = desired - cur;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        const turnRate = 1.4 + (player.homing - 1) * 0.5;  // stacks slowly
+        const turn = Math.min(Math.abs(diff), turnRate * dt) * Math.sign(diff);
+        const na = cur + turn;
+        o.vx = Math.cos(na) * sp;
+        o.vy = Math.sin(na) * sp;
+      }
+    }
+    o.x += o.vx * dt;
+    o.y += o.vy * dt;
+    o.life -= dt;
+    if (o.life <= 0) { orbs.splice(i, 1); continue; }
+  }
+
+  // Drones: orbit the player and auto-fire at nearby viruses for half damage
+  for (let i = 0; i < drones.length; i++) {
+    const dr = drones[i];
+    dr.angle += dt * 1.5;
+    const orbitR = 52;
+    // evenly space drones around the orbit
+    const slot = dr.angle + (i / drones.length) * Math.PI * 2;
+    dr.x = player.x + Math.cos(slot) * orbitR;
+    dr.y = player.y + Math.sin(slot) * orbitR;
+    dr.fireCooldown -= dt;
+    if (dr.fireCooldown <= 0) {
+      const target = nearestVirus(dr.x, dr.y);
+      if (target && Math.hypot(target.x - dr.x, target.y - dr.y) < 650) {
+        const a = Math.atan2(target.y - dr.y, target.x - dr.x);
+        spawnOrb(dr.x, dr.y, a, player.bulletDamage / 2);
+        dr.fireCooldown = player.fireRate;
+      } else {
+        dr.fireCooldown = 0.1; // recheck soon if nothing in range
+      }
+    }
+  }
+
+  // Laser: charges up, then fires a piercing beam toward the mouse aim.
+  if (player.laser > 0 && canAttack) {
+    player.laserCooldown -= dt;
+    if (player.laserCooldown <= 0) {
+      fireLaser(aimAngle());
+      sfx('laser');
+      player.laserCooldown = laserMax();
+    }
+  }
+
+  // Cannon: charges, then fires a cannonball that bursts into bullets on impact
+  if (player.cannon > 0 && canAttack) {
+    player.cannonCooldown -= dt;
+    if (player.cannonCooldown <= 0) {
+      const ca = aimAngle();
+      orbs.push({
+        x: player.x, y: player.y,
+        vx: Math.cos(ca) * player.bulletSpeed * 0.7,
+        vy: Math.sin(ca) * player.bulletSpeed * 0.7,
+        r: 11, life: 1.8, dmg: player.bulletDamage,
+        cannon: true, splitN: 5 + (player.cannon - 1) * 3,
+        pierce: 0, hit: new Set(),
+      });
+      sfx('shoot');
+      player.cannonCooldown = cannonMax();
+    }
+  }
+
+  // Fire_wall: red squares orbit the player and burn viruses on contact
+  if (player.firewallSqs.length > 0) {
+    player.firewallAngle += dt * 2.5;
+    const n = player.firewallSqs.length;
+    for (let i = 0; i < n; i++) {
+      const sq = player.firewallSqs[i];
+      sq.hitCd -= dt;
+      const ang = player.firewallAngle + (i / n) * Math.PI * 2;
+      sq.x = player.x + Math.cos(ang) * 72;
+      sq.y = player.y + Math.sin(ang) * 72;
+      if (sq.hitCd > 0) continue;
+      for (let j = viruses.length - 1; j >= 0; j--) {
+        const v = viruses[j];
+        if (v.invuln) continue;
+        if (Math.hypot(v.x - sq.x, v.y - sq.y) < v.r + 14) {
+          v.hp -= 14;
+          sq.hitCd = 0.25;
+          spawnParticles(sq.x, sq.y, '#ff5a1a', 4, 90);
+          if (v.hp <= 0) { viruses.splice(j, 1); killVirus(v); }
+          break;
+        }
+      }
+    }
+  }
+
+  // Beam visuals fade out
+  for (let i = beams.length - 1; i >= 0; i--) {
+    beams[i].life -= dt;
+    if (beams[i].life <= 0) beams.splice(i, 1);
+  }
+
+  // Viruses
+  for (const v of viruses) {
+    v.touchCooldown -= dt;
+    v.wobble += dt * 4;
+
+    if (v.type === 'I_See_You_Exe') {
+      // ----- Boss: slowly drift to random spots, attack on a timer -----
+      v.moveTimer -= dt;
+      const tdx = v.moveTarget.x - v.x, tdy = v.moveTarget.y - v.y;
+      const tdist = Math.hypot(tdx, tdy);
+      if (tdist < 30 || v.moveTimer <= 0) {
+        // pick a new random destination near the player
+        const ang = Math.random() * Math.PI * 2;
+        const rad = 250 + Math.random() * 350;
+        v.moveTarget = { x: player.x + Math.cos(ang) * rad, y: player.y + Math.sin(ang) * rad };
+        v.moveTimer = 2 + Math.random() * 2;
+      } else {
+        v.x += (tdx / tdist) * v.speed * dt;
+        v.y += (tdy / tdist) * v.speed * dt;
+      }
+
+      // rapid-fire sub-attack: 5 quick shots at the player
+      if (v.rapidQueue > 0) {
+        v.rapidTimer -= dt;
+        if (v.rapidTimer <= 0) {
+          bossShootAt(v, Math.atan2(player.y - v.y, player.x - v.x));
+          v.rapidQueue--;
+          v.rapidTimer = 0.13;
+        }
+      }
+
+      // main attack timer (fires much more often now)
+      v.attackTimer -= dt;
+      if (v.attackTimer <= 0 && v.rapidQueue <= 0) {
+        if (Math.random() < 0.5) {
+          // radial burst: bullets in every direction
+          const n = 12;
+          const off = Math.random() * Math.PI * 2;
+          for (let k = 0; k < n; k++) bossShootAt(v, off + (k / n) * Math.PI * 2);
+          v.attackTimer = 0.9;
+        } else {
+          // start a rapid burst at the player
+          v.rapidQueue = 5;
+          v.rapidTimer = 0;
+          v.attackTimer = 1.1;
+        }
+      }
+
+      v.x = Math.max(-half, Math.min(half, v.x));
+      v.y = Math.max(-half, Math.min(half, v.y));
+
+      // touch damage
+      const bdx = v.x - player.x, bdy = v.y - player.y;
+      if (Math.hypot(bdx, bdy) < v.r + player.r && v.touchCooldown <= 0) {
+        v.touchCooldown = 0.6;
+        hurtPlayer(v.dmg, '#f55');
+      }
+      continue; // skip the normal virus logic below
+    }
+
+    if (v.type === 'smile_json') {
+      // ----- Smile boss: drifts around, slams hands or summons minions -----
+      v.moveTimer -= dt;
+      const tdx = v.moveTarget.x - v.x, tdy = v.moveTarget.y - v.y;
+      const tdist = Math.hypot(tdx, tdy);
+      if (tdist < 30 || v.moveTimer <= 0) {
+        const ang = Math.random() * Math.PI * 2;
+        const rad = 280 + Math.random() * 320;
+        v.moveTarget = { x: player.x + Math.cos(ang) * rad, y: player.y + Math.sin(ang) * rad };
+        v.moveTimer = 2 + Math.random() * 2;
+      } else {
+        v.x += (tdx / tdist) * v.speed * dt;
+        v.y += (tdy / tdist) * v.speed * dt;
+      }
+
+      const handsIdle = v.hands.every(h => h.state === 'idle');
+      v.attackTimer -= dt;
+      if (v.attackTimer <= 0 && handsIdle) {
+        if (Math.random() < 0.5) {
+          // hand slam: hands hover near you, then charge
+          for (const h of v.hands) {
+            const ad = Math.atan2(h.y - player.y, h.x - player.x);
+            h.aimX = player.x + Math.cos(ad) * 85;
+            h.aimY = player.y + Math.sin(ad) * 85;
+            h.state = 'aim';
+            h.timer = 0.5;
+          }
+          v.attackTimer = 3.2;
+        } else {
+          // summon minions
+          for (let k = 0; k < 2; k++) {
+            spawnMalwareMinion(v.x + (Math.random() - 0.5) * 120, v.y + (Math.random() - 0.5) * 120);
+            spawnAdwareMinion(v.x + (Math.random() - 0.5) * 120, v.y + (Math.random() - 0.5) * 120);
+          }
+          v.attackTimer = 4.0;
+        }
+      }
+
+      // update hands
+      const handR = 24;
+      for (const h of v.hands) {
+        h.hitCooldown -= dt;
+        const idleX = v.x + h.side * 110, idleY = v.y;
+        if (h.state === 'idle') {
+          h.x += (idleX - h.x) * Math.min(1, dt * 6);
+          h.y += (idleY - h.y) * Math.min(1, dt * 6);
+        } else if (h.state === 'aim') {
+          h.timer -= dt;
+          h.x += (h.aimX - h.x) * Math.min(1, dt * 8);
+          h.y += (h.aimY - h.y) * Math.min(1, dt * 8);
+          if (h.timer <= 0) {
+            const cd = Math.atan2(player.y - h.y, player.x - h.x);
+            const cs = 1000;
+            h.vx = Math.cos(cd) * cs; h.vy = Math.sin(cd) * cs;
+            h.state = 'charge'; h.timer = 0.45;
+            addShake(8, 0.2);
+          }
+        } else if (h.state === 'charge') {
+          h.timer -= dt;
+          h.x += h.vx * dt; h.y += h.vy * dt;
+          if (h.timer <= 0) h.state = 'return';
+        } else if (h.state === 'return') {
+          h.x += (idleX - h.x) * Math.min(1, dt * 4);
+          h.y += (idleY - h.y) * Math.min(1, dt * 4);
+          if (Math.hypot(idleX - h.x, idleY - h.y) < 12) h.state = 'idle';
+        }
+        // hand contact damage
+        if (Math.hypot(h.x - player.x, h.y - player.y) < handR + player.r && h.hitCooldown <= 0) {
+          h.hitCooldown = 0.6;
+          hurtPlayer(v.dmg, '#fff');
+        }
+      }
+
+      v.x = Math.max(-half, Math.min(half, v.x));
+      v.y = Math.max(-half, Math.min(half, v.y));
+
+      // body touch damage
+      if (Math.hypot(v.x - player.x, v.y - player.y) < v.r + player.r && v.touchCooldown <= 0) {
+        v.touchCooldown = 0.6;
+        hurtPlayer(v.dmg, '#fff');
+      }
+      continue;
+    }
+
+    if (v.type === 'Peer' || v.type === 'Peer_alf2') {
+      // ----- Peer: drifts like Seek and fires a ring of bullets -----
+      v.moveTimer -= dt;
+      const tdx = v.moveTarget.x - v.x, tdy = v.moveTarget.y - v.y;
+      const tdist = Math.hypot(tdx, tdy);
+      if (tdist < 30 || v.moveTimer <= 0) {
+        const ang = Math.random() * Math.PI * 2;
+        const rad = 220 + Math.random() * 320;
+        v.moveTarget = { x: player.x + Math.cos(ang) * rad, y: player.y + Math.sin(ang) * rad };
+        v.moveTimer = 1.5 + Math.random() * 2;
+      } else {
+        v.x += (tdx / tdist) * v.speed * dt;
+        v.y += (tdy / tdist) * v.speed * dt;
+      }
+      v.attackTimer -= dt;
+      if (v.attackTimer <= 0) {
+        const n = v.bulletCount || 5;
+        const off = Math.random() * Math.PI * 2;
+        for (let k = 0; k < n; k++) {
+          enemyOrbs.push({
+            x: v.x, y: v.y,
+            vx: Math.cos(off + k * (Math.PI * 2 / n)) * 300,
+            vy: Math.sin(off + k * (Math.PI * 2 / n)) * 300,
+            r: 6, life: 3.5, dmg: v.dmg,
+            color: v.color, glow: v.glow,
+          });
+        }
+        v.attackTimer = 2.0 + Math.random();
+      }
+      v.x = Math.max(-half, Math.min(half, v.x));
+      v.y = Math.max(-half, Math.min(half, v.y));
+      if (Math.hypot(v.x - player.x, v.y - player.y) < v.r + player.r && v.touchCooldown <= 0) {
+        v.touchCooldown = 0.6;
+        hurtPlayer(v.dmg, v.color);
+      }
+      continue;
+    }
+
+    if (v.type === 'Intruption_Jpeg') {
+      // ----- Intruption: many attacks — spread+charge, radial, spiral, fan -----
+      // spiral stream sub-attack: fires bullets over time while rotating
+      if (v.streamQueue > 0) {
+        v.streamTimer -= dt;
+        if (v.streamTimer <= 0) {
+          v.streamAngle += 0.45;
+          bossShootAt(v, v.streamAngle);
+          bossShootAt(v, v.streamAngle + Math.PI); // double spiral arm
+          v.streamQueue--;
+          v.streamTimer = 0.05;
+        }
+      }
+
+      if (v.charging) {
+        v.chargeTime -= dt;
+        v.x += Math.cos(v.chargeDir) * 860 * dt;
+        v.y += Math.sin(v.chargeDir) * 860 * dt;
+        if (v.chargeTime <= 0) v.charging = false;
+      } else {
+        const a = Math.atan2(player.y - v.y, player.x - v.x);
+        v.x += Math.cos(a) * v.speed * dt;
+        v.y += Math.sin(a) * v.speed * dt;
+        v.attackTimer -= dt;
+        if (v.attackTimer <= 0 && v.streamQueue <= 0) {
+          const pick = Math.random();
+          if (pick < 0.3) {
+            // 5-bullet spread, then charge
+            for (let k = -2; k <= 2; k++) bossShootAt(v, a + k * 0.2);
+            v.chargeDir = a; v.charging = true; v.chargeTime = 0.6;
+            v.attackTimer = 1.8;
+            addShake(10, 0.25);
+          } else if (pick < 0.55) {
+            // radial burst in every direction
+            const n = 16, off = Math.random() * Math.PI * 2;
+            for (let k = 0; k < n; k++) bossShootAt(v, off + k / n * Math.PI * 2);
+            v.attackTimer = 1.6;
+          } else if (pick < 0.8) {
+            // spiral stream
+            v.streamQueue = 28; v.streamTimer = 0; v.streamAngle = Math.random() * Math.PI * 2;
+            v.attackTimer = 2.6;
+          } else {
+            // rapid triple charge dash with a bullet fan each
+            for (let k = -1; k <= 1; k++) bossShootAt(v, a + k * 0.15);
+            v.chargeDir = a + (Math.random() - 0.5) * 0.4;
+            v.charging = true; v.chargeTime = 0.45;
+            v.attackTimer = 1.2;
+          }
+        }
+      }
+      v.x = Math.max(-half, Math.min(half, v.x));
+      v.y = Math.max(-half, Math.min(half, v.y));
+      if (Math.hypot(v.x - player.x, v.y - player.y) < v.r + player.r && v.touchCooldown <= 0) {
+        v.touchCooldown = 0.6;
+        hurtPlayer(v.dmg, v.color);
+      }
+      continue;
+    }
+
+    if (v.type === 'Its_Mine_Now') {
+      // ----- Ransomware lock: teleports, fast bullets, lasers, locking keys -----
+      const pdist = Math.hypot(player.x - v.x, player.y - v.y);
+
+      // teleport near the player, then fire 7 fast bullets
+      v.teleportTimer -= dt;
+      if (v.teleportTimer <= 0) {
+        spawnShockwave(v.x, v.y, 120, v.color, 0.4);
+        spawnParticles(v.x, v.y, v.color, 20, 220);
+        const ta = Math.random() * Math.PI * 2;
+        const td = 220 + Math.random() * 130;
+        v.x = Math.max(-half, Math.min(half, player.x + Math.cos(ta) * td));
+        v.y = Math.max(-half, Math.min(half, player.y + Math.sin(ta) * td));
+        spawnShockwave(v.x, v.y, 150, v.color, 0.45);
+        spawnParticles(v.x, v.y, v.color, 26, 260);
+        addShake(10, 0.25);
+        const base = Math.atan2(player.y - v.y, player.x - v.x);
+        for (let k = -3; k <= 3; k++) {
+          const a = base + k * 0.16;
+          enemyOrbs.push({
+            x: v.x, y: v.y,
+            vx: Math.cos(a) * 560, vy: Math.sin(a) * 560,  // FAST
+            r: 6, life: 3, dmg: v.dmg,
+            color: '#7aa0ff', glow: 'rgba(120,160,255,0.32)',
+          });
+        }
+        v.teleportTimer = 2.6 + Math.random() * 1.2;
+      }
+
+      // fire a laser at the player
+      v.laserTimer -= dt;
+      if (v.laserTimer <= 0) {
+        const a = Math.atan2(player.y - v.y, player.x - v.x);
+        const warn = 0.55, active = 1.0;
+        enemyBeams.push({
+          ownerId: v.id, x: v.x, y: v.y, angle: a, len: 1500, width: 7,
+          warn, activeDur: active, life: warn + active, maxLife: warn + active,
+          dmg: 2, hitCooldown: 0, color: '#5a86ff',
+        });
+        v.laserTimer = 2.8 + Math.random() * 1.5;
+      }
+
+      // orbiting keys — they appear/extend when you're close, lock you out on touch
+      v.keyHitCd -= dt;
+      const keyR = 16;
+      const orbit = pdist < 360 ? 95 : 72;
+      for (let ki = 0; ki < v.keys.length; ki++) {
+        const key = v.keys[ki];
+        key.angle += dt * 2.4;
+        const kx = v.x + Math.cos(key.angle + ki * Math.PI) * orbit;
+        const ky = v.y + Math.sin(key.angle + ki * Math.PI) * orbit;
+        key.x = kx; key.y = ky;
+        if (Math.hypot(kx - player.x, ky - player.y) < keyR + player.r && v.keyHitCd <= 0 && player.dashTime <= 0) {
+          player.lockout = 3;          // can't attack for 3 seconds
+          v.keyHitCd = 1.0;
+          player.flash = 0.5;
+          spawnParticles(player.x, player.y, '#ffb13b', 10, 140);
+        }
+      }
+
+      v.x = Math.max(-half, Math.min(half, v.x));
+      v.y = Math.max(-half, Math.min(half, v.y));
+      if (pdist < v.r + player.r && v.touchCooldown <= 0) {
+        v.touchCooldown = 0.6;
+        hurtPlayer(v.dmg, v.color);
+      }
+      continue;
+    }
+
+    if (v.type === 'Proto_Type') {
+      v.wobble += dt * 4;
+      // record head path for the snake body
+      v.trail.unshift({ x: v.x, y: v.y });
+      if (v.trail.length > 260) v.trail.pop();
+
+      // ---- phase / guardian-summon handling ----
+      if (v.summoning) {
+        v.invuln = true; v.barHidden = true;
+        v.alpha = Math.max(0.15, v.alpha - dt * 2);
+        const fa = Math.atan2(v.y - player.y, v.x - player.x);
+        v.x += Math.cos(fa) * 40 * dt;
+        v.y += Math.sin(fa) * 40 * dt;
+        v.x = Math.max(-half, Math.min(half, v.x));
+        v.y = Math.max(-half, Math.min(half, v.y));
+        if (!viruses.some(o => o !== v && o.isBoss)) {
+          v.summoning = false; v.invuln = false; v.barHidden = false;
+          v.phase++;
+          v.attackTimer = 1.0;
+          // 2 of its eyes go blank, and it picks a new random direction
+          for (let n = 0; n < 2; n++) {
+            const avail = [];
+            for (let i = 0; i < PROTO_SEGS; i++) if (!v.eyesBlank[i]) avail.push(i);
+            if (avail.length) v.eyesBlank[avail[(Math.random() * avail.length) | 0]] = true;
+          }
+          v.heading = Math.random() * Math.PI * 2;
+          v.headingTimer = 1.2 + Math.random();
+          spawnShockwave(v.x, v.y, 320, v.color, 0.6);
+          spawnParticles(v.x, v.y, v.color, 50, 360);
+          addShake(20, 0.5); slowmo = 0.45; sfx('bossReturn');
+          bossCard = { title: '☠ Proto_Type', subtitle: 'RETURNS', life: 1.8, maxLife: 1.8, color: v.color };
+        }
+        continue;
+      }
+
+      v.alpha = Math.min(1, v.alpha + dt * 2);
+
+      // trigger the next phase at 4/5, 3/5, 2/5, 1/5 health
+      const thresh = [0.8, 0.6, 0.4, 0.2];
+      if (v.phase < 4 && v.hp <= v.maxHp * thresh[v.phase]) {
+        v.summoning = true; v.invuln = true; v.barHidden = true;
+        const sub = summonSubBoss(PROTO_GUARDIANS[v.phase], v.x, v.y);
+        v.summonId = sub.id;
+        spawnShockwave(v.x, v.y, 360, v.color, 0.6);
+        addShake(22, 0.6); slowmo = 0.5; sfx('summon');
+        bossCard = { title: '☠ Proto_Type', subtitle: 'SUMMONS A GUARDIAN', life: 2.2, maxLife: 2.2, color: v.color };
+        continue;
+      }
+
+      // ---- movement: wanders in a random direction, bouncing off walls ----
+      const a = Math.atan2(player.y - v.y, player.x - v.x); // still aims attacks at you
+      v.headingTimer -= dt;
+      if (v.headingTimer <= 0) {
+        v.heading = Math.random() * Math.PI * 2;
+        v.headingTimer = 1.4 + Math.random() * 1.6;
+      }
+      v.x += Math.cos(v.heading) * v.speed * dt;
+      v.y += Math.sin(v.heading) * v.speed * dt;
+      if (v.x <= -half || v.x >= half) v.heading = Math.PI - v.heading;
+      if (v.y <= -half || v.y >= half) v.heading = -v.heading;
+
+      if (v.streamQueue > 0) {
+        v.streamTimer -= dt;
+        if (v.streamTimer <= 0) {
+          v.streamAngle += 0.4;
+          bossShootAt(v, v.streamAngle);
+          bossShootAt(v, v.streamAngle + Math.PI);
+          v.streamQueue--; v.streamTimer = 0.05; sfx('shoot');
+        }
+      }
+      if (v.rapidQueue > 0) {
+        v.rapidTimer -= dt;
+        if (v.rapidTimer <= 0) {
+          bossShootAt(v, Math.atan2(player.y - v.y, player.x - v.x));
+          v.rapidQueue--; v.rapidTimer = 0.1; sfx('shoot');
+        }
+      }
+
+      v.attackTimer -= dt;
+      if (v.attackTimer <= 0 && v.streamQueue <= 0 && v.rapidQueue <= 0) {
+        const pick = Math.random();
+        if (pick < 0.3) {
+          const n = 20, off = Math.random() * Math.PI * 2;
+          for (let k = 0; k < n; k++) bossShootAt(v, off + k / n * Math.PI * 2);
+          v.attackTimer = 1.5; sfx('shoot');
+        } else if (pick < 0.55) {
+          v.streamQueue = 34; v.streamTimer = 0; v.streamAngle = Math.random() * Math.PI * 2;
+          v.attackTimer = 2.6;
+        } else if (pick < 0.78) {
+          v.rapidQueue = 7; v.rapidTimer = 0;
+          v.attackTimer = 1.8;
+        } else {
+          const warn = 0.5, active = 1.0;
+          enemyBeams.push({ ownerId: v.id, x: v.x, y: v.y, angle: a, len: 1600, width: 8, warn, activeDur: active, life: warn + active, maxLife: warn + active, dmg: 2, hitCooldown: 0, color: '#cf9bff' });
+          v.attackTimer = 1.6; sfx('laser');
+        }
+      }
+
+      v.x = Math.max(-half, Math.min(half, v.x));
+      v.y = Math.max(-half, Math.min(half, v.y));
+      if (Math.hypot(v.x - player.x, v.y - player.y) < v.r + player.r && v.touchCooldown <= 0) {
+        v.touchCooldown = 0.6; hurtPlayer(v.dmg, v.color);
+      }
+      continue;
+    }
+
+    if (v.shape === 'square') {
+      // ----- Malware: keep a fixed distance from the player and kite -----
+      const toPlayer = Math.atan2(player.y - v.y, player.x - v.x);
+      const dist = Math.hypot(player.x - v.x, player.y - v.y);
+      let dir;
+      if (dist < v.preferDist - 50) {
+        dir = toPlayer + Math.PI;             // too close -> back away
+      } else if (dist > v.preferDist + 50) {
+        dir = toPlayer;                        // too far -> approach
+      } else {
+        dir = toPlayer + Math.PI / 2 * v.strafeDir; // in range -> strafe
+        if (Math.random() < 0.01) v.strafeDir *= -1;
+      }
+      dir += (Math.random() - 0.5) * 0.3;      // slight wander
+      v.x += Math.cos(dir) * v.speed * dt;
+      v.y += Math.sin(dir) * v.speed * dt;
+
+      // attack the player: cyan fires a laser, others fire orbs
+      v.shootTimer -= dt;
+      if (v.shootTimer <= 0) {
+        const a = Math.atan2(player.y - v.y, player.x - v.x);
+        if (v.beam) {
+          const warn = 0.6, active = 1.0;   // telegraph, then 1s of laser
+          enemyBeams.push({
+            ownerId: v.id,
+            x: v.x, y: v.y,
+            angle: a,
+            len: 1500,
+            width: 7,
+            warn, activeDur: active,
+            life: warn + active, maxLife: warn + active,
+            dmg: v.beamDmg,
+            hitCooldown: 0,
+            color: v.color,
+          });
+        } else {
+          const spd = 320;
+          enemyOrbs.push({
+            x: v.x, y: v.y,
+            vx: Math.cos(a) * spd,
+            vy: Math.sin(a) * spd,
+            r: 6,
+            life: 3,
+            dmg: v.orbDamage,
+            color: v.orbColor,
+            glow: v.orbGlow,
+          });
+        }
+        v.shootTimer = v.shootMin + Math.random() * (v.shootMax - v.shootMin);
+      }
+    } else {
+      // ----- Virus behaviour -----
+      // Every 1-2 seconds it decides on a new step toward the player, with a
+      // randomised angle so the movement looks natural rather than a beeline.
+      v.stepTimer -= dt;
+      if (v.stepTimer <= 0 && !v.moving) {
+        const toPlayer = Math.atan2(player.y - v.y, player.x - v.x);
+        const spread = (Math.random() - 0.5) * 1.6;
+        v.moveAngle = toPlayer + spread;
+        v.moving = true;
+        v.moveTime = 0.45 + Math.random() * 0.45;
+        v.stepTimer = v.moveTime + 0.15 + Math.random() * 0.35; // little idle, keeps pace
+      }
+      if (v.moving) {
+        v.moveTime -= dt;
+        v.x += Math.cos(v.moveAngle) * v.speed * dt;
+        v.y += Math.sin(v.moveAngle) * v.speed * dt;
+        if (v.moveTime <= 0) v.moving = false;
+      }
+    }
+
+    // clamp viruses to world
+    v.x = Math.max(-half, Math.min(half, v.x));
+    v.y = Math.max(-half, Math.min(half, v.y));
+
+    // touch damage
+    const dx = v.x - player.x, dy = v.y - player.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < v.r + player.r && v.touchCooldown <= 0) {
+      v.touchCooldown = 0.6;
+      hurtPlayer(v.dmg, '#f55');
+    }
+  }
+
+  // Enemy beams (cyan malware lasers) — damage the player while touching
+  for (let i = enemyBeams.length - 1; i >= 0; i--) {
+    const bm = enemyBeams[i];
+    bm.life -= dt;
+    bm.hitCooldown -= dt;
+    // only the active phase (after the warning telegraph) deals damage
+    const active = bm.life <= bm.activeDur;
+    if (active) {
+      const cos = Math.cos(bm.angle), sin = Math.sin(bm.angle);
+      const pdx = player.x - bm.x, pdy = player.y - bm.y;
+      const proj = pdx * cos + pdy * sin;
+      const perp = Math.abs(pdx * sin - pdy * cos);
+      if (proj > 0 && proj < bm.len && perp < player.r + bm.width && bm.hitCooldown <= 0) {
+        bm.hitCooldown = 0.5;
+        hurtPlayer(bm.dmg, bm.color);
+      }
+    }
+    if (bm.life <= 0) enemyBeams.splice(i, 1);
+  }
+
+  // Orb vs virus collisions
+  for (let i = orbs.length - 1; i >= 0; i--) {
+    const o = orbs[i];
+    let remove = false;
+    for (let j = viruses.length - 1; j >= 0; j--) {
+      const v = viruses[j];
+      if (o.hit.has(v.id) || v.invuln) continue;
+      const d = Math.hypot(o.x - v.x, o.y - v.y);
+      if (d < o.r + v.r) {
+        v.hp -= o.dmg;
+        o.hit.add(v.id);
+        spawnParticles(o.x, o.y, o.cannon ? '#ff7a2a' : '#ffd84a', o.cannon ? 10 : 5, o.cannon ? 160 : 100);
+        // Cannon: burst into normal bullets on impact, then vanish
+        if (o.cannon) {
+          for (let s = 0; s < o.splitN; s++) {
+            spawnOrb(o.x, o.y, (s / o.splitN) * Math.PI * 2, player.bulletDamage, true);
+          }
+          if (v.hp <= 0) { viruses.splice(j, 1); killVirus(v); }
+          remove = true;
+          break;
+        }
+        // Explosive: split into shards on impact (+1 shard per level)
+        if (player.explosive > 0 && !o.child) {
+          const shardDmg = Math.max(2, Math.round(player.bulletDamage * 0.25));
+          const shards = 2 + player.explosive;   // level 1 = 3 shards
+          for (let s = 0; s < shards; s++) {
+            spawnOrb(o.x, o.y, Math.random() * Math.PI * 2, shardDmg, true);
+          }
+        }
+        if (v.hp <= 0) {
+          viruses.splice(j, 1);
+          killVirus(v);
+        }
+        // piercing: keep flying until pierce budget is used up
+        if (o.pierce > 0) {
+          o.pierce--;
+        } else {
+          remove = true;
+          break;
+        }
+      }
+    }
+    if (remove) orbs.splice(i, 1);
+  }
+
+  // Enemy orbs (malware projectiles)
+  for (let i = enemyOrbs.length - 1; i >= 0; i--) {
+    const e = enemyOrbs[i];
+    e.x += e.vx * dt;
+    e.y += e.vy * dt;
+    e.life -= dt;
+
+    const d = Math.hypot(e.x - player.x, e.y - player.y);
+    if (d < e.r + player.r) {
+      hurtPlayer(e.dmg, e.color);
+      enemyOrbs.splice(i, 1);
+      continue;
+    }
+    if (e.life <= 0) enemyOrbs.splice(i, 1);
+  }
+
+  // Spawn indicators
+  for (let i = indicators.length - 1; i >= 0; i--) {
+    indicators[i].life -= dt;
+    if (indicators[i].life <= 0) indicators.splice(i, 1);
+  }
+
+  // Particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vx *= 0.92;
+    p.vy *= 0.92;
+    p.life -= dt;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  // HUD
+  document.getElementById('hp').textContent = Math.ceil(player.hp);
+  document.getElementById('score').textContent = score;
+  document.getElementById('enemies').textContent = viruses.length;
+}
+
+function nearestVirus(x, y) {
+  let nearest = null, nd = Infinity;
+  for (const v of viruses) {
+    const d = Math.hypot(v.x - x, v.y - y);
+    if (d < nd) { nd = d; nearest = v; }
+  }
+  return nearest;
+}
+
+// fire a single orb from (x,y) toward angle, dealing dmg.
+// child orbs (from Explosive) are smaller, short-lived, and don't explode again.
+function spawnOrb(x, y, angle, dmg, child) {
+  orbs.push({
+    x, y,
+    vx: Math.cos(angle) * player.bulletSpeed,
+    vy: Math.sin(angle) * player.bulletSpeed,
+    r: child ? 3 : 5,
+    life: child ? 0.5 : 1.4,
+    dmg,
+    child: !!child,
+    pierce: child ? 0 : player.pierce,
+    hit: new Set(),          // virus ids already hit (avoid double hits)
+  });
+}
+
+// boss fires one orb from its position along `angle`
+function bossShootAt(b, angle) {
+  const spd = 300;
+  enemyOrbs.push({
+    x: b.x, y: b.y,
+    vx: Math.cos(angle) * spd,
+    vy: Math.sin(angle) * spd,
+    r: 7,
+    life: 4,
+    dmg: b.dmg,
+    overVirus: true,   // boss bullets pass over viruses (render on top)
+    color: '#ff5b8f',
+    glow: 'rgba(255,90,140,0.32)',
+  });
+}
+
+// start a dash if available
+function tryDash() {
+  if (!running || player.dash <= 0 || player.dashCooldown > 0 || player.dashTime > 0) return;
+  let dx = 0, dy = 0;
+  if (keys.up) dy -= 1; if (keys.down) dy += 1;
+  if (keys.left) dx -= 1; if (keys.right) dx += 1;
+  player.dashDir = (dx || dy) ? Math.atan2(dy, dx) : aimAngle();
+  player.dashTime = 0.18;            // active dash duration (invulnerable)
+  player.dashCooldown = dashMax();
+  player.dashHits = new Set();
+  sfx('dash');
+}
+
+// apply damage to the player (no-op while dashing / invulnerable)
+function hurtPlayer(amount, color) {
+  if (player.dashTime > 0) return;
+  player.hp -= amount;
+  player.flash = 0.5;
+  sfx('hurt');
+  spawnParticles(player.x, player.y, color || '#f55', 8, 120);
+  if (player.hp <= 0) { player.hp = 0; gameOver(); }
+}
+
+// direction from the player toward the mouse cursor (where you aim)
+function aimAngle() {
+  const mx = camX + mouse.x - W / 2;
+  const my = camY + mouse.y - H / 2;
+  return Math.atan2(my - player.y, mx - player.x);
+}
+
+function fireOrb() {
+  // aim toward the mouse cursor
+  const angle = aimAngle();
+
+  // Shotgun: fire 1 + player.shotgun orbs, scattered by player.spread.
+  const count = 1 + player.shotgun;
+  for (let i = 0; i < count; i++) {
+    const a = count === 1 ? angle : angle + (Math.random() - 0.5) * 2 * player.spread;
+    spawnOrb(player.x, player.y, a, player.bulletDamage);
+  }
+}
+
+// Laser: hitscan beam from the player along `angle`, hits EVERY virus on the
+// line (infinite pierce) for 1.5x damage.
+function fireLaser(angle) {
+  const len = 1600;
+  const halfWidth = 9;
+  const cos = Math.cos(angle), sin = Math.sin(angle);
+  const dmg = player.bulletDamage * 1.5;
+
+  for (let j = viruses.length - 1; j >= 0; j--) {
+    const v = viruses[j];
+    if (v.invuln) continue;
+    const dx = v.x - player.x, dy = v.y - player.y;
+    const proj = dx * cos + dy * sin;            // distance along the beam
+    if (proj < 0 || proj > len) continue;
+    const perp = Math.abs(dx * sin - dy * cos);  // distance from the beam line
+    if (perp < v.r + halfWidth) {
+      v.hp -= dmg;
+      spawnParticles(v.x, v.y, '#ff63d4', 6, 120);
+      if (v.hp <= 0) {
+        viruses.splice(j, 1);
+        killVirus(v);
+      }
+    }
+  }
+
+  beams.push({
+    x: player.x, y: player.y,
+    angle, len, life: 0.18, maxLife: 0.18,
+  });
+}
+
+// ---- Render ----
+function worldToScreen(x, y) {
+  return { x: x - camX + W / 2 + shakeX, y: y - camY + H / 2 + shakeY };
+}
+
+function render() {
+  ctx.clearRect(0, 0, W, H);
+
+  // screen shake offset (applied via worldToScreen)
+  if (shakeTime > 0) {
+    const k = shakeMag * (shakeTime / shakeDur);
+    shakeX = (Math.random() - 0.5) * 2 * k;
+    shakeY = (Math.random() - 0.5) * 2 * k;
+  } else { shakeX = 0; shakeY = 0; }
+
+  // background stars (parallax-ish, just world-anchored)
+  for (const s of stars) {
+    const p = worldToScreen(s.x, s.y);
+    if (p.x < -5 || p.x > W + 5 || p.y < -5 || p.y > H + 5) continue;
+    ctx.globalAlpha = s.a;
+    ctx.fillStyle = '#aab';
+    ctx.fillRect(p.x, p.y, s.s, s.s);
+  }
+  ctx.globalAlpha = 1;
+
+  // world boundary
+  const tl = worldToScreen(-WORLD / 2, -WORLD / 2);
+  ctx.strokeStyle = 'rgba(120,120,200,0.4)';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(tl.x, tl.y, WORLD, WORLD);
+
+  // particles
+  for (const p of particles) {
+    const s = worldToScreen(p.x, p.y);
+    ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, p.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // boss-summon absorb particles + pulsing core
+  for (const p of introFx) {
+    const s = worldToScreen(p.cx + Math.cos(p.angle) * p.dist, p.cy + Math.sin(p.angle) * p.dist);
+    ctx.globalAlpha = Math.max(0, 1 - p.dist / 320);
+    ctx.fillStyle = p.color;
+    const sz = p.size || 2;
+    ctx.fillRect(s.x - sz, s.y - sz, sz * 2, sz * 2);
+  }
+  ctx.globalAlpha = 1;
+  if (bossIntro) {
+    const c = worldToScreen(bossIntro.x, bossIntro.y);
+    const pulse = Math.max(4, 16 + 30 * (1 - bossIntro.t / bossIntro.dur) + Math.sin(bossIntro.t * 12) * 6);
+    ctx.fillStyle = bossIntro.color;
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath(); ctx.arc(c.x, c.y, pulse, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 0.3;
+    ctx.beginPath(); ctx.arc(c.x, c.y, pulse * 1.8, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // shockwaves (boss deaths / summon)
+  for (const sw of shockwaves) {
+    const s = worldToScreen(sw.x, sw.y);
+    ctx.globalAlpha = Math.max(0, sw.life / sw.maxLife);
+    ctx.strokeStyle = sw.color;
+    ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(s.x, s.y, sw.r, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // viruses (red circles)
+  for (const v of viruses) {
+    const s = worldToScreen(v.x, v.y);
+    const wob = Math.sin(v.wobble) * 2;
+    if (v.alpha !== undefined) ctx.globalAlpha = v.alpha;  // Proto fade
+    // glow
+    ctx.fillStyle = v.glow;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, v.r + 9 + wob, 0, Math.PI * 2);
+    ctx.fill();
+    // simple style: black inside, thick coloured border, no extra detail
+    ctx.fillStyle = '#000';
+    ctx.strokeStyle = v.color;
+    ctx.lineWidth = 5;
+    if (v.shape === 'eye') {
+      // Boss: neon eye that looks at the player
+      const rr = v.r + wob;
+      ctx.lineWidth = 6;
+      // eye outline (lens shape via two arcs)
+      ctx.beginPath();
+      ctx.ellipse(s.x, s.y, rr, rr * 0.7, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      // iris tracks the player
+      const la = Math.atan2(player.y - v.y, player.x - v.x);
+      const ix = s.x + Math.cos(la) * rr * 0.32;
+      const iy = s.y + Math.sin(la) * rr * 0.32;
+      ctx.beginPath();
+      ctx.arc(ix, iy, rr * 0.4, 0, Math.PI * 2);
+      ctx.fillStyle = '#000';
+      ctx.fill();
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      // pupil
+      ctx.beginPath();
+      ctx.arc(ix, iy, rr * 0.16, 0, Math.PI * 2);
+      ctx.fillStyle = v.color;
+      ctx.fill();
+    } else if (v.shape === 'square') {
+      const sz = (v.r + wob) * 2;
+      ctx.fillRect(s.x - sz / 2, s.y - sz / 2, sz, sz);
+      ctx.strokeRect(s.x - sz / 2, s.y - sz / 2, sz, sz);
+    } else if (v.shape === 'triangle') {
+      const rr = v.r + wob;
+      ctx.beginPath();
+      for (let k = 0; k < 3; k++) {
+        const a = -Math.PI / 2 + k * (Math.PI * 2 / 3) + v.wobble * 0.2;
+        const px = s.x + Math.cos(a) * rr, py = s.y + Math.sin(a) * rr;
+        if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else if (v.shape === 'face') {
+      // Smile boss: neon look — black inside, thick glowing white border,
+      // ":]" face, plus two square hands.
+      const drawSquare = (cx, cy, half2, line, lw) => {
+        // glow
+        ctx.fillStyle = 'rgba(230,230,255,0.18)';
+        ctx.fillRect(cx - half2 - 6, cy - half2 - 6, (half2 + 6) * 2, (half2 + 6) * 2);
+        // body
+        ctx.fillStyle = '#000';
+        ctx.fillRect(cx - half2, cy - half2, half2 * 2, half2 * 2);
+        ctx.strokeStyle = line;
+        ctx.lineWidth = lw;
+        ctx.strokeRect(cx - half2, cy - half2, half2 * 2, half2 * 2);
+      };
+      // hands first
+      for (const h of v.hands) {
+        const hs = worldToScreen(h.x, h.y);
+        const charging = h.state === 'charge' || h.state === 'aim';
+        drawSquare(hs.x, hs.y, 22, charging ? '#ff5b8f' : '#ffffff', 4);
+      }
+      // body
+      const rr = v.r + wob;
+      drawSquare(s.x, s.y, rr, '#ffffff', 6);
+      // ":]" face in neon white
+      ctx.fillStyle = '#eaf0ff';
+      ctx.font = 'bold ' + Math.round(rr * 1.1) + 'px Segoe UI, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(':]', s.x, s.y + rr * 0.05);
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+    } else if (v.shape === 'star') {
+      // Intruption: yellow 6-point star with a red triangle in the middle
+      const rr = v.r + wob;
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      for (let k = 0; k < 12; k++) {
+        const rad = (k % 2 === 0) ? rr : rr * 0.5;
+        const a = -Math.PI / 2 + k * (Math.PI / 6) + v.wobble * 0.15;
+        const px = s.x + Math.cos(a) * rad, py = s.y + Math.sin(a) * rad;
+        if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      // red triangle in the centre
+      ctx.beginPath();
+      for (let k = 0; k < 3; k++) {
+        const a = -Math.PI / 2 + k * (Math.PI * 2 / 3);
+        const px = s.x + Math.cos(a) * rr * 0.42, py = s.y + Math.sin(a) * rr * 0.42;
+        if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fillStyle = '#000';
+      ctx.fill();
+      ctx.strokeStyle = '#ff3b3b';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+    } else if (v.shape === 'lock') {
+      // Its_Mine_Now: blue padlock with an orange keyhole, neon look
+      const rr = v.r + wob;
+      // orbiting keys behind the body
+      for (const key of (v.keys || [])) {
+        if (key.x === undefined) continue;
+        const ks = worldToScreen(key.x, key.y);
+        ctx.save();
+        ctx.translate(ks.x, ks.y);
+        ctx.rotate(key.angle);
+        ctx.fillStyle = '#ffb13b';
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(-7, 0, 7, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.fillRect(0, -2.5, 16, 5);
+        ctx.fillRect(12, 0, 3, 6);
+        ctx.restore();
+      }
+      // shackle (arc on top)
+      ctx.lineWidth = 7;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y - rr * 0.55, rr * 0.5, Math.PI, 0);
+      ctx.stroke();
+      // body (rounded square)
+      const bw = rr * 1.5, bh = rr * 1.25;
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(s.x - bw / 2, s.y - bh * 0.25, bw, bh, 10);
+      else ctx.rect(s.x - bw / 2, s.y - bh * 0.25, bw, bh);
+      ctx.fill();
+      ctx.stroke();
+      // orange keyhole
+      ctx.fillStyle = '#ff9b1a';
+      ctx.beginPath();
+      ctx.arc(s.x, s.y + bh * 0.18, rr * 0.16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillRect(s.x - rr * 0.06, s.y + bh * 0.18, rr * 0.12, rr * 0.34);
+    } else if (v.shape === 'proto') {
+      // Proto_Type: a snake of 10 rounded white squares, each with a different eye
+      const trail = v.trail || [];
+      const spacing = 22; // frames between segments
+      const roundedSquare = (cx, cy, half, rad) => {
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(cx - half, cy - half, half * 2, half * 2, rad);
+        else ctx.rect(cx - half, cy - half, half * 2, half * 2);
+        ctx.fill(); ctx.stroke();
+      };
+      // draw from tail to head so the head sits on top
+      for (let seg = PROTO_SEGS - 1; seg >= 0; seg--) {
+        const tp = seg === 0 ? { x: v.x, y: v.y } : (trail[seg * spacing] || trail[trail.length - 1] || { x: v.x, y: v.y });
+        const ss = worldToScreen(tp.x, tp.y);
+        const half = Math.max(8, v.r - seg * 2.4 + wob);
+        const rad = half * 0.5; // curvy corners
+        // glow
+        ctx.fillStyle = 'rgba(230,230,255,0.16)';
+        ctx.strokeStyle = 'rgba(230,230,255,0.16)'; ctx.lineWidth = 1;
+        roundedSquare(ss.x, ss.y, half + 5, rad + 3);
+        // white square body, neon white rounded border
+        ctx.fillStyle = '#000';
+        ctx.strokeStyle = '#f3f3fb'; ctx.lineWidth = 5;
+        roundedSquare(ss.x, ss.y, half, rad);
+        // eye — blank (dead) ones go dark grey, others track the player
+        const er = half * 0.52;
+        if (v.eyesBlank[seg]) {
+          ctx.beginPath(); ctx.arc(ss.x, ss.y, er * 0.7, 0, Math.PI * 2);
+          ctx.fillStyle = '#2a2a30'; ctx.fill();
+        } else {
+          const la = Math.atan2(player.y - tp.y, player.x - tp.x);
+          ctx.beginPath(); ctx.arc(ss.x, ss.y, er, 0, Math.PI * 2);
+          ctx.fillStyle = PROTO_EYES[seg]; ctx.fill();
+          ctx.beginPath();
+          ctx.arc(ss.x + Math.cos(la) * er * 0.4, ss.y + Math.sin(la) * er * 0.4, er * 0.45, 0, Math.PI * 2);
+          ctx.fillStyle = '#000'; ctx.fill();
+        }
+      }
+    } else {
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, v.r + wob, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+    // hp bar (skip for bosses — they have their own bar at the top)
+    if (v.hp < v.maxHp && !v.isBoss) {
+      const bw = 28;
+      ctx.fillStyle = '#400';
+      ctx.fillRect(s.x - bw / 2, s.y - v.r - 14, bw, 4);
+      ctx.fillStyle = '#0f6';
+      ctx.fillRect(s.x - bw / 2, s.y - v.r - 14, bw * (v.hp / v.maxHp), 4);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // cyan malware laser beams
+  for (const bm of enemyBeams) {
+    const s = worldToScreen(bm.x, bm.y);
+    const ex = s.x + Math.cos(bm.angle) * bm.len;
+    const ey = s.y + Math.sin(bm.angle) * bm.len;
+    const active = bm.life <= bm.activeDur;
+    if (!active) {
+      // WARNING telegraph: thin blinking line showing where it'll hit
+      ctx.globalAlpha = 0.5 + 0.5 * Math.abs(Math.sin(bm.life * 22));
+      ctx.strokeStyle = bm.color;
+      ctx.setLineDash([14, 10]);
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(ex, ey); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+    } else {
+      // active laser
+      const flick = 0.78 + 0.22 * Math.sin(bm.life * 40);
+      ctx.globalAlpha = flick;
+      ctx.strokeStyle = 'rgba(46,230,230,0.30)';
+      ctx.lineWidth = bm.width * 3;
+      ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(ex, ey); ctx.stroke();
+      ctx.strokeStyle = bm.color;
+      ctx.lineWidth = bm.width;
+      ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(ex, ey); ctx.stroke();
+      ctx.strokeStyle = '#dffcff';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(ex, ey); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // orbs (yellow)
+  for (const o of orbs) {
+    const s = worldToScreen(o.x, o.y);
+    ctx.fillStyle = 'rgba(255,216,74,0.3)';
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, o.r + 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffd84a';
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, o.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // enemy orbs (fired by malware, coloured per type)
+  for (const e of enemyOrbs) {
+    const s = worldToScreen(e.x, e.y);
+    ctx.fillStyle = e.glow;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, e.r + 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = e.color;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, e.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // spawn-direction indicators: small pulsing arrows around the player
+  // pointing toward where a virus just appeared.
+  const psc = worldToScreen(player.x, player.y);
+  for (const ind of indicators) {
+    const t = ind.life / ind.maxLife;
+    const rad = 46 + (1 - t) * 6;
+    const ax = psc.x + Math.cos(ind.angle) * rad;
+    const ay = psc.y + Math.sin(ind.angle) * rad;
+    ctx.save();
+    ctx.translate(ax, ay);
+    ctx.rotate(ind.angle);
+    ctx.globalAlpha = Math.min(1, t * 1.5) * (0.5 + 0.5 * Math.abs(Math.sin(ind.life * 12)));
+    ctx.fillStyle = '#ff5555';
+    ctx.beginPath();
+    ctx.moveTo(10, 0);
+    ctx.lineTo(-4, -6);
+    ctx.lineTo(-4, 6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+
+  // laser beams
+  for (const bm of beams) {
+    const a = bm.life / bm.maxLife;
+    const s = worldToScreen(bm.x, bm.y);
+    const ex = s.x + Math.cos(bm.angle) * bm.len;
+    const ey = s.y + Math.sin(bm.angle) * bm.len;
+    ctx.globalAlpha = a;
+    // outer glow
+    ctx.strokeStyle = 'rgba(255,99,212,0.35)';
+    ctx.lineWidth = 14;
+    ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(ex, ey); ctx.stroke();
+    // core
+    ctx.strokeStyle = '#ffd6f4';
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(ex, ey); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  // fire_wall: red squares orbiting the player
+  for (const sq of player.firewallSqs) {
+    if (sq.x === undefined) continue;
+    const s = worldToScreen(sq.x, sq.y);
+    const h = 13 + Math.sin(player.firewallAngle * 3 + sq.x) * 2;
+    ctx.fillStyle = 'rgba(255,90,30,0.25)';
+    ctx.fillRect(s.x - h - 4, s.y - h - 4, (h + 4) * 2, (h + 4) * 2);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(s.x - h, s.y - h, h * 2, h * 2);
+    ctx.strokeStyle = '#ff5a2a'; ctx.lineWidth = 4;
+    ctx.strokeRect(s.x - h, s.y - h, h * 2, h * 2);
+    // inner ember
+    ctx.fillStyle = '#ffb347';
+    ctx.fillRect(s.x - 3, s.y - 3, 6, 6);
+  }
+
+  // drones (mini cursors orbiting the player)
+  for (const dr of drones) {
+    const d = worldToScreen(dr.x, dr.y);
+    ctx.save();
+    ctx.translate(d.x, d.y);
+    ctx.scale(0.62, 0.62);
+    ctx.fillStyle = 'rgba(120,255,200,0.25)';
+    ctx.beginPath();
+    ctx.arc(0, 0, 12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#bfffe6';
+    ctx.strokeStyle = '#2f9e74';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, 18);
+    ctx.lineTo(5, 13);
+    ctx.lineTo(9, 20);
+    ctx.lineTo(12, 18);
+    ctx.lineTo(8, 11);
+    ctx.lineTo(15, 11);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // aim reticle at the mouse (where you shoot)
+  ctx.strokeStyle = 'rgba(255,216,74,0.85)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(mouse.x, mouse.y, 11, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(mouse.x - 16, mouse.y); ctx.lineTo(mouse.x - 6, mouse.y);
+  ctx.moveTo(mouse.x + 6, mouse.y); ctx.lineTo(mouse.x + 16, mouse.y);
+  ctx.moveTo(mouse.x, mouse.y - 16); ctx.lineTo(mouse.x, mouse.y - 6);
+  ctx.moveTo(mouse.x, mouse.y + 6); ctx.lineTo(mouse.x, mouse.y + 16);
+  ctx.stroke();
+
+  // player = mouse cursor (arrow shape)
+  const ps = worldToScreen(player.x, player.y);
+  ctx.save();
+  ctx.translate(ps.x, ps.y);
+  // dash invulnerability ring
+  if (player.dashTime > 0) {
+    ctx.strokeStyle = '#7ac5ff';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, player.r + 12, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  // glow
+  ctx.fillStyle = 'rgba(120,200,255,0.25)';
+  ctx.beginPath();
+  ctx.arc(0, 0, player.r + 6, 0, Math.PI * 2);
+  ctx.fill();
+  // cursor arrow (flashes red/white briefly when damaged)
+  const flashing = player.flash > 0 && Math.floor(player.flash * 20) % 2 === 0;
+  ctx.fillStyle = flashing ? '#ff4040' : '#eaf6ff';
+  ctx.strokeStyle = flashing ? '#fff' : '#3a6ea5';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(0, 18);
+  ctx.lineTo(5, 13);
+  ctx.lineTo(9, 20);
+  ctx.lineTo(12, 18);
+  ctx.lineTo(8, 11);
+  ctx.lineTo(15, 11);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+
+  // low-hp vignette (about to die — at 10% health)
+  if (player.hp < player.maxHp * 0.1) {
+    ctx.fillStyle = 'rgba(255,0,0,' + (0.45 * (1 - player.hp / (player.maxHp * 0.1))) + ')';
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // screen flash (boss death / summon)
+  if (screenFlash) {
+    ctx.fillStyle = 'rgba(' + screenFlash.color + ',' + (screenFlash.life / screenFlash.maxLife * 0.5) + ')';
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // cinematic letterbox bars during intro / name card
+  let barT = 0;
+  if (bossIntro) barT = Math.min(1, (bossIntro.dur - bossIntro.t) / 0.6);
+  else if (bossCard) barT = Math.min(1, (bossCard.maxLife - bossCard.life) / 0.25, bossCard.life / 0.4);
+  if (barT > 0) {
+    const bh = 70 * barT;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, bh);
+    ctx.fillRect(0, H - bh, W, bh);
+  }
+
+  // boss-summon WARNING banner
+  if (bossIntro) {
+    // darken the field a touch for drama
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 0.6 + 0.4 * Math.abs(Math.sin(bossIntro.t * 6));
+    ctx.fillStyle = bossIntro.color;
+    ctx.font = 'bold 44px Segoe UI, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('⚠ WARNING — A BOSS IS MATERIALIZING ⚠', W / 2, 100);
+    ctx.globalAlpha = 1;
+    ctx.font = '18px Segoe UI, sans-serif';
+    ctx.fillStyle = '#fff';
+    ctx.fillText(Math.ceil(bossIntro.t) + 's', W / 2, 128);
+    ctx.textAlign = 'left';
+  }
+
+  // boss name card (slam-in reveal)
+  if (bossCard) {
+    const t = 1 - bossCard.life / bossCard.maxLife;          // 0..1 over lifetime
+    const appear = Math.min(1, t / 0.12);                     // quick slam in
+    const fade = bossCard.life < 0.5 ? bossCard.life / 0.5 : 1;
+    const scale = 1 + (1 - appear) * 0.6;
+    ctx.save();
+    ctx.globalAlpha = fade;
+    ctx.translate(W / 2, H / 2 - 10);
+    ctx.scale(scale, scale);
+    ctx.fillStyle = bossCard.color;
+    ctx.font = 'bold 56px Segoe UI, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.shadowColor = bossCard.color;
+    ctx.shadowBlur = 24;
+    ctx.fillText(bossCard.title, 0, 0);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 24px Segoe UI, sans-serif';
+    ctx.fillText(bossCard.subtitle, 0, 44);
+    ctx.restore();
+    ctx.textAlign = 'left';
+  }
+
+  // ---- Weapon cooldown bars (top-right, vertical) ----
+  drawCooldownBars();
+
+  // ---- CLICK ME popup (blocks attacking) ----
+  if (clickBox) {
+    const b = clickBox;
+    ctx.fillStyle = 'rgba(255,40,90,0.18)';
+    ctx.fillRect(b.x, b.y, b.w, b.h);
+    ctx.strokeStyle = '#ff3b6b';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(b.x, b.y, b.w, b.h);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 40px Segoe UI, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('CLICK ME', b.x + b.w / 2, b.y + b.h / 2);
+    ctx.font = '16px Segoe UI, sans-serif';
+    ctx.fillStyle = '#ffd0dd';
+    ctx.fillText('(blocking your attacks!)', b.x + b.w / 2, b.y + b.h / 2 + 34);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  // ---- Attacks-locked warning (ransomware keys) ----
+  if (player.lockout > 0) {
+    ctx.globalAlpha = 0.6 + 0.4 * Math.abs(Math.sin(player.lockout * 10));
+    ctx.fillStyle = '#ff9b1a';
+    ctx.font = 'bold 26px Segoe UI, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('🔒 ATTACKS LOCKED ' + player.lockout.toFixed(1) + 's', W / 2, H - 70);
+    ctx.textAlign = 'left';
+    ctx.globalAlpha = 1;
+  }
+
+  // ---- Player health bar (bottom centre) ----
+  drawPlayerHealth();
+
+  // ---- Boss health bar (top centre) — aggregates all visible bosses ----
+  const bosses = viruses.filter(v => v.isBoss && !v.barHidden);
+  if (bosses.length) drawBossHealth(bosses);
+}
+
+function drawPlayerHealth() {
+  const bw = 360, bh = 18;
+  const x = (W - bw) / 2, y = H - 38;
+  const ratio = Math.max(0, player.hp / player.maxHp);
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(x - 3, y - 3, bw + 6, bh + 6);
+  ctx.fillStyle = '#1a1a26';
+  ctx.fillRect(x, y, bw, bh);
+  // green -> red as health drops
+  const col = ratio > 0.5 ? '#3ad96b' : ratio > 0.25 ? '#ffcc3a' : '#ff4444';
+  ctx.fillStyle = col;
+  ctx.fillRect(x, y, bw * ratio, bh);
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, bw, bh);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 12px Segoe UI, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(Math.ceil(player.hp) + ' / ' + player.maxHp, W / 2, y + bh - 4);
+  ctx.textAlign = 'left';
+}
+
+function drawBossHealth(bosses) {
+  const isProto = bosses[0].type === 'Proto_Type';
+  const bw = Math.min(isProto ? 860 : 720, W - 80), bh = isProto ? 30 : 24;
+  const x = (W - bw) / 2, y = 26;
+  let hp = 0, max = 0;
+  for (const b of bosses) { hp += b.hp; max += b.maxHp; }
+  const ratio = Math.max(0, hp / max);
+  const col = bosses[0].color;
+
+  // outer frame + backdrop
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(x - 6, y - 6, bw + 12, bh + 12);
+  ctx.fillStyle = '#100a16';
+  ctx.fillRect(x, y, bw, bh);
+
+  // gradient fill
+  const t = performance.now() / 1000;
+  const g = ctx.createLinearGradient(x, 0, x + bw, 0);
+  g.addColorStop(0, '#000');
+  g.addColorStop(0.5, col);
+  g.addColorStop(1, '#fff');
+  ctx.fillStyle = g;
+  ctx.fillRect(x, y, bw * ratio, bh);
+  // top highlight + animated shimmer
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.fillRect(x, y, bw * ratio, bh * 0.4);
+  const sh = ((t * 0.35) % 1) * bw;
+  ctx.globalAlpha = 0.25;
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x + sh - 20, y, 40, bh);
+  ctx.globalAlpha = 1;
+
+  // phase segment ticks (Proto shows its guardian thresholds)
+  if (isProto) {
+    ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+    ctx.lineWidth = 2;
+    for (const f of [0.2, 0.4, 0.6, 0.8]) {
+      ctx.beginPath(); ctx.moveTo(x + bw * f, y); ctx.lineTo(x + bw * f, y + bh); ctx.stroke();
+    }
+  }
+
+  // glowing border
+  ctx.save();
+  ctx.shadowColor = col; ctx.shadowBlur = isProto ? 22 : 12;
+  ctx.strokeStyle = col; ctx.lineWidth = isProto ? 3 : 2;
+  ctx.strokeRect(x, y, bw, bh);
+  ctx.restore();
+
+  // label with glow
+  ctx.save();
+  ctx.shadowColor = col; ctx.shadowBlur = 12;
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold ' + (isProto ? 18 : 14) + 'px Segoe UI, sans-serif';
+  ctx.textAlign = 'center';
+  const label = bosses[0].label + (bosses.length > 1 ? ' ×' + bosses.length : '');
+  ctx.fillText(label, W / 2, y + bh - (isProto ? 8 : 6));
+  ctx.restore();
+  ctx.textAlign = 'left';
+}
+
+function drawCooldownBars() {
+  const barW = 16, barH = 130, gap = 12;
+  const top = 18;
+  // build the list of bars to show
+  const bars = [];
+  // shooter: charge = how ready the next shot is (1 = ready)
+  bars.push({
+    charge: 1 - Math.max(0, Math.min(1, player.fireCooldown / player.fireRate)),
+    color: '#ffd84a', label: 'GUN',
+  });
+  if (player.laser > 0) {
+    bars.push({
+      charge: 1 - Math.max(0, Math.min(1, player.laserCooldown / laserMax())),
+      color: '#ff63d4', label: 'LZR',
+    });
+  }
+  if (player.dash > 0) {
+    bars.push({
+      charge: 1 - Math.max(0, Math.min(1, player.dashCooldown / dashMax())),
+      color: '#7ac5ff', label: 'DSH',
+    });
+  }
+  if (player.cannon > 0) {
+    bars.push({
+      charge: 1 - Math.max(0, Math.min(1, player.cannonCooldown / cannonMax())),
+      color: '#ff7a2a', label: 'CNN',
+    });
+  }
+  // draw right-to-left from the corner
+  for (let i = 0; i < bars.length; i++) {
+    const b = bars[i];
+    const x = W - 18 - barW - i * (barW + gap);
+    // frame
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillRect(x - 2, top - 2, barW + 4, barH + 4);
+    ctx.fillStyle = '#1a1a26';
+    ctx.fillRect(x, top, barW, barH);
+    // fill (from bottom up)
+    const fh = barH * b.charge;
+    ctx.fillStyle = b.color;
+    ctx.fillRect(x, top + barH - fh, barW, fh);
+    // ready glow
+    if (b.charge >= 0.999) {
+      ctx.strokeStyle = b.color;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x - 1, top - 1, barW + 2, barH + 2);
+    }
+    // label
+    ctx.fillStyle = '#cdd';
+    ctx.font = '10px Segoe UI, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(b.label, x + barW / 2, top + barH + 14);
+  }
+  ctx.textAlign = 'left';
+}
+
+function loop(now) {
+  if (!running) return;
+  try {
+    let dt = (now - lastTime) / 1000;
+    lastTime = now;
+    if (dt > 0.05) dt = 0.05; // clamp big frame gaps
+    // slow-motion for boss appear / death moments
+    if (slowmo > 0) { slowmo -= dt; dt *= 0.4; }
+    update(dt);
+    render();
+  } catch (err) {
+    running = false;
+    console.error('Game crashed:', err);
+    ctx.fillStyle = '#100'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#ff6b6b'; ctx.textAlign = 'left';
+    ctx.font = 'bold 20px monospace';
+    ctx.fillText('GAME ERROR (screenshot this):', 24, 50);
+    ctx.font = '14px monospace';
+    ctx.fillText(String(err && err.message || err), 24, 84);
+    String((err && err.stack) || '').split('\n').slice(0, 10).forEach((l, i) => {
+      ctx.fillText(l.trim().slice(0, 120), 24, 116 + i * 20);
+    });
+    return;
+  }
+  requestAnimationFrame(loop);
+}
+
+// ---- Start / restart ----
+canvas.addEventListener('mousedown', () => {
+  if (!running && !inUpgrade && !inAdmin) startGame();
+});
+overlay.addEventListener('mousedown', () => {
+  if (!running && !inUpgrade && !inAdmin) startGame();
+});
+</script>
+</body>
+</html>
