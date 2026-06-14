@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -179,19 +179,19 @@
   </footer>
 
 <script>
-  // ====== 게임 목록 ======
-  // 새 게임을 추가하려면 아래 배열에 항목 하나만 넣으면 됩니다.
-  // file: 게임 HTML 파일 이름 (이 폴더에 같이 두기)
+  // ====== Game list ======
+  // To add a new game, just drop one entry into the array below.
+  // file: the game's HTML file name (keep it in this same folder)
   const GAMES = [
     {
       title: "Virus Hunter",
-      desc: "마우스 커서가 되어 노란 구체를 쏘며, 끝없이 몰려오는 바이러스와 거대한 보스들을 물리치는 로그라이크 슈터.",
+      desc: "Become the mouse cursor, fire yellow orbs, and blast through endless waves of viruses and giant bosses in this open-world roguelike shooter.",
       file: "virus-hunter.html",
       icon: "🦠",
       color: "#ffd84a",
-      tags: ["슈터", "로그라이크", "보스전"]
+      tags: ["Shooter", "Roguelike", "Boss fights"]
     },
-    // 다음 게임은 여기에 추가됩니다 ↓
+    // Add the next game here ↓
   ];
 
   const grid = document.getElementById('grid');
@@ -211,10 +211,10 @@
     grid.appendChild(a);
   }
 
-  // 항상 마지막에 "곧 추가" 카드
+  // always a "coming soon" card at the end
   const soon = document.createElement('div');
   soon.className = 'card soon';
-  soon.innerHTML = `<div><div class="big">✦</div>새로운 게임이<br>곧 추가됩니다</div>`;
+  soon.innerHTML = `<div><div class="big">✦</div>New games<br>coming soon</div>`;
   grid.appendChild(soon);
 
   document.getElementById('year').textContent = new Date().getFullYear();
