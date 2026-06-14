@@ -43,10 +43,99 @@
     background: rgba(5,5,12,0.75);
     user-select: none;
   }
-  #overlay h1 { font-size: 46px; margin: 0 0 8px; letter-spacing: 1px; }
-  #overlay p { font-size: 17px; color: #bcd; margin: 4px 0; max-width: 460px; }
-  #overlay .hint { margin-top: 22px; color: #7af; font-size: 16px; }
+  #overlay { cursor: default; }
+  #overlay p { font-size: 16px; color: #bcd; margin: 4px auto; max-width: 460px; }
+  #overlay .hint { margin-top: 20px; color: #7af; font-size: 16px; }
   .hidden { display: none !important; }
+
+  /* ---- browser-window styled title ---- */
+  #overlay .win {
+    width: min(640px, 92vw);
+    background: #15151f;
+    border: 1px solid #2b2b40;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 40px 110px rgba(0,0,0,0.7);
+  }
+  #overlay .chrome { background: #0d0d15; padding: 11px 12px 0; }
+  #overlay .tabrow { display: flex; align-items: flex-end; gap: 6px; }
+  #overlay .lights { display: inline-flex; gap: 7px; align-self: center; margin: 0 12px 9px 6px; }
+  #overlay .lights span { width: 12px; height: 12px; border-radius: 50%; }
+  #overlay .lights .r { background: #ff5f57; }
+  #overlay .lights .y { background: #febc2e; }
+  #overlay .lights .g { background: #28c840; }
+  #overlay .tab {
+    background: #15151f; color: #cfd2ea;
+    padding: 9px 18px; border-radius: 10px 10px 0 0;
+    font-size: 13px; font-weight: 700;
+    border: 1px solid #2b2b40; border-bottom: none;
+  }
+  #overlay .tab.dim { background: #0f0f18; color: #4a4a5e; padding: 9px 13px; }
+  #overlay .url {
+    background: #1c1c2a; color: #8a8aa8;
+    padding: 8px 16px; font-size: 12px; text-align: left;
+    border-top: 1px solid #2b2b40;
+  }
+  #overlay .page { padding: 38px 30px 32px; text-align: center; }
+  #overlay h1 {
+    font-size: clamp(38px, 7vw, 56px); margin: 0 0 16px; letter-spacing: 2px; font-weight: 900;
+    background: linear-gradient(100deg, #7af, #b18cff 45%, #ff6bd0 75%, #ffd84a);
+    background-size: 200% auto;
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 4px 26px rgba(120,160,255,0.3));
+    animation: titleshine 6s linear infinite;
+  }
+  @keyframes titleshine { to { background-position: 200% center; } }
+  #overlay .dexbtn {
+    margin-top: 22px;
+    display: inline-flex; align-items: center; gap: 8px;
+    background: #1c2336; color: #dfe8ff;
+    border: 1px solid #3a4a6e; border-radius: 10px;
+    padding: 12px 22px; font-size: 15px; font-weight: 700; cursor: pointer;
+    transition: background .12s, border-color .12s, transform .12s;
+  }
+  #overlay .dexbtn:hover { background: #2a3756; border-color: #6fa8ff; transform: translateY(-2px); }
+
+  /* ---- Virusionary ---- */
+  #dex {
+    position: fixed; inset: 0; z-index: 20;
+    background: rgba(6,6,12,0.97);
+    display: flex; flex-direction: column;
+    cursor: default; color: #e8e8f4;
+    user-select: none;
+  }
+  .dex-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 26px; }
+  .dex-head .t {
+    font-size: 24px; font-weight: 900; letter-spacing: 3px;
+    background: linear-gradient(100deg, #ff6bd0, #ffd84a);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .dex-close { cursor: pointer; color: #cdd; border: 1px solid #3a4a6e; border-radius: 8px; padding: 8px 16px; font-weight: 700; }
+  .dex-close:hover { background: #2a3756; border-color: #6fa8ff; }
+  .dex-tabs { display: flex; gap: 6px; padding: 0 22px; flex-wrap: wrap; }
+  .dex-tab {
+    background: #10101a; color: #8a8aa8;
+    border: 1px solid #20202e; border-bottom: none;
+    border-radius: 11px 11px 0 0; padding: 11px 20px;
+    font-size: 13px; font-weight: 700; letter-spacing: 1px; cursor: pointer;
+  }
+  .dex-tab:hover { color: #cdd; }
+  .dex-tab.active { background: #1a1a28; color: #fff; box-shadow: 0 -2px 0 var(--tabcol, #7af) inset; }
+  .dex-list {
+    flex: 1; overflow-y: auto; border-top: 1px solid #24243a;
+    padding: 20px 22px 50px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 14px; align-content: start;
+  }
+  .dex-entry { display: flex; gap: 14px; background: #12121d; border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 14px; }
+  .dex-icon { width: 72px; height: 72px; flex: 0 0 72px; background: #0b0b14; border-radius: 10px; }
+  .dex-info { flex: 1; min-width: 0; }
+  .dex-name { font-size: 17px; font-weight: 800; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .dex-cat { font-size: 10px; font-weight: 800; letter-spacing: 1px; color: #0a0a12; padding: 3px 9px; border-radius: 999px; }
+  .dex-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px 14px; font-size: 13px; color: #8a8aa8; margin-bottom: 8px; }
+  .dex-grid b { color: #e8e8f4; }
+  .dex-fx { font-size: 13px; color: #bcd; line-height: 1.4; }
+  .dex-fx b { color: #ffd23a; }
 
   #upgrade {
     position: fixed;
@@ -82,6 +171,8 @@
   .card .icon { font-size: 34px; margin-bottom: 10px; }
   .card .name { font-size: 19px; font-weight: 700; margin-bottom: 8px; color: #ffe27a; }
   .card .desc { font-size: 14px; color: #bcd; line-height: 1.45; }
+  .card .desc .good { color: #5fe08a; }
+  .card .desc .bad { color: #ff5a6a; }
 
   #admin {
     position: fixed;
@@ -124,10 +215,31 @@
   <div><span class="label">Viruses</span> <span id="enemies">0</span></div>
 </div>
 <div id="overlay">
-  <h1>VIRUS HUNTER</h1>
-  <p>You are the cursor. Move with <b>WASD</b>. Hold <b>Space</b> to fire yellow orbs (auto-aimed at the nearest virus).</p>
-  <p>Survive the waves of red <b>viruses</b> that chase you across the open world.</p>
-  <p class="hint">Press Space or click to start</p>
+  <div class="win">
+    <div class="chrome">
+      <div class="tabrow">
+        <span class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></span>
+        <span class="tab">🦠 Virus Hunter</span>
+        <span class="tab dim">＋</span>
+      </div>
+      <div class="url">🔒 some-random-game://virus-hunter</div>
+    </div>
+    <div class="page">
+      <h1>VIRUS HUNTER</h1>
+      <p>You are the cursor. Move with <b>WASD</b>. Hold <b>Space</b> to fire yellow orbs.</p>
+      <p>Survive endless waves of <b>viruses</b> and giant bosses.</p>
+      <p class="hint">Press Space or click to start</p>
+      <button class="dexbtn" id="dexBtn">📖 Virusionary</button>
+    </div>
+  </div>
+</div>
+<div id="dex" class="hidden">
+  <div class="dex-head">
+    <div class="t">📖 VIRUSIONARY</div>
+    <div class="dex-close" id="dexClose">✕ Close</div>
+  </div>
+  <div class="dex-tabs" id="dexTabs"></div>
+  <div class="dex-list" id="dexList"></div>
 </div>
 <div id="upgrade" class="hidden">
   <h2>WAVE CLEARED</h2>
@@ -185,7 +297,7 @@ function setKey(e, val) {
       keys.shoot = val;
       e.preventDefault();
       // Space also starts / restarts the game from a menu
-      if (val && !running && !inUpgrade && !inAdmin) startGame();
+      if (val && !running && !inUpgrade && !inAdmin && !inDex) startGame();
       break;
     case 'KeyP':
       if (val) toggleAdmin();
@@ -265,7 +377,7 @@ function updateMusic(dt) {
 const player = {
   x: 0, y: 0,           // world position
   r: 10,
-  hp: 30, maxHp: 30,
+  hp: 15, maxHp: 15,
   fireCooldown: 0,
   fireRate: 0.42,       // seconds between shots (lower fire rate)
   bulletSpeed: 620,
@@ -352,7 +464,7 @@ function initStars() {
 function startGame() {
   initAudio();
   player.x = 0; player.y = 0;
-  player.maxHp = 30;
+  player.maxHp = 15;
   player.hp = player.maxHp;
   player.fireCooldown = 0;
   player.flash = 0;
@@ -402,11 +514,8 @@ function startGame() {
 
 function gameOver() {
   running = false;
+  // back to the main menu (the browser-window title screen)
   overlay.classList.remove('hidden');
-  overlay.innerHTML =
-    '<h1>YOU WERE INFECTED</h1>' +
-    '<p>You reached <b>Wave ' + wave + '</b> with a score of <b>' + score + '</b>.</p>' +
-    '<p class="hint">Press Space or click to play again</p>';
 }
 
 // ---- Waves ----
@@ -737,27 +846,27 @@ function summonSubBoss(kind, x, y) {
 const UPGRADES = [
   {
     id: 'Fire_rate', icon: '⚡', name: 'Fire_rate',
-    desc: 'Increases fire rate.',
+    desc: '<b class="good">+25% fire rate</b>',
     apply: () => { player.fireRate = Math.max(0.07, player.fireRate * 0.8); },
   },
   {
     id: 'Damage_Up', icon: '💥', name: 'Damage_Up',
-    desc: 'Increases orb damage.',
-    apply: () => { player.bulletDamage += 12; },
+    desc: '<b class="good">+50% damage</b>',
+    apply: () => { player.bulletDamage = player.bulletDamage * 1.5; },
   },
   {
     id: 'Shotgun', icon: '🔫', name: 'Shotgun',
-    desc: 'Fires 1 more orb, but spreads the aim a bit.',
+    desc: '<b class="good">+1 orb</b> · <b class="bad">widens spread</b>',
     apply: () => { player.shotgun += 1; },
   },
   {
     id: 'Piercing', icon: '🏹', name: 'Piercing',
-    desc: 'Orbs pierce +1 (pass through one more virus).',
+    desc: '<b class="good">Orbs pierce +1 virus</b>',
     apply: () => { player.pierce += 1; },
   },
   {
     id: 'Drone', icon: '🛸', name: 'Drone',
-    desc: 'Summons a mini-you that auto-fires for half your damage.',
+    desc: '<b class="good">Summons a drone</b> · auto-fires at 50% damage',
     apply: () => {
       drones.push({
         angle: Math.random() * Math.PI * 2, // orbit position
@@ -768,55 +877,55 @@ const UPGRADES = [
   },
   {
     id: 'Minigun', icon: '🔥', name: 'Minigun',
-    desc: 'Fire much faster, but each orb deals greatly reduced damage.',
+    desc: '<b class="good">+120% fire rate</b> · <b class="bad">−70% damage</b>',
     apply: () => {
       player.fireRate = Math.max(0.04, player.fireRate * 0.45);
-      player.bulletDamage = Math.max(1, Math.round(player.bulletDamage * 0.3));
+      player.bulletDamage = Math.max(1, player.bulletDamage * 0.3);
     },
   },
   {
     id: 'Focus', icon: '🎯', name: 'Focus',
-    desc: 'Lowers orb scattering for tighter aim.',
-    apply: () => { player.spread = Math.max(0.02, player.spread - 0.07); },
+    desc: '<b class="good">−35% spread</b>',
+    apply: () => { player.spread = Math.max(0.02, player.spread * 0.65); },
   },
   {
     id: 'Lazer', icon: '🔆', name: 'Lazer',
-    desc: 'Adds a laser: long cooldown, pierces infinitely, 1.5× damage.',
+    desc: '<b class="good">Adds a laser</b> · pierces all, 150% damage · <b class="bad">long cooldown</b>',
     apply: () => { player.laser += 1; },
   },
   {
     id: 'Dash', icon: '💨', name: 'Dash',
-    desc: 'Press Shift to dash: immune while dashing, and you damage viruses you cross.',
+    desc: '<b class="good">Shift to dash</b> · immune + damages viruses you cross',
     apply: () => { player.dash += 1; },
   },
   {
     id: 'Healthy', icon: '💚', name: 'Healthy',
-    desc: '+12 max HP, and heals you for 12.',
-    apply: () => { player.maxHp += 12; player.hp += 12; },
+    desc: '<b class="good">+50% max HP</b>',
+    apply: () => { const inc = Math.round(player.maxHp * 0.5); player.maxHp += inc; player.hp += inc; },
   },
   {
     id: 'Life_steal', icon: '🩸', name: 'Life_steal',
-    desc: '5% chance to gain 1 HP on each kill.',
+    desc: '<b class="good">On kill: 5% chance to heal 1 HP</b>',
     apply: () => { player.lifesteal += 1; },
   },
   {
     id: 'Explosive', icon: '🧨', name: 'Explosive',
-    desc: 'Orbs split into 3 low-damage shards when they hit a virus.',
+    desc: '<b class="good">Orbs burst into 3 shards on hit</b> · +1 per stack',
     apply: () => { player.explosive += 1; },
   },
   {
     id: 'Fire_wall', icon: '🔥', name: 'Fire_wall',
-    desc: 'Adds 2 red squares that orbit you and burn viruses on contact.',
+    desc: '<b class="good">+2 fire squares</b> orbit you, burning viruses on contact',
     apply: () => { player.firewallSqs.push({ hitCd: 0 }, { hitCd: 0 }); },
   },
   {
     id: 'Cannon', icon: '💣', name: 'Cannon',
-    desc: 'Auto-fires a cannonball that bursts into 5 bullets on impact (+3 per stack).',
+    desc: '<b class="good">Cannonball bursts into 5 bullets on impact</b> · +3 per stack',
     apply: () => { player.cannon += 1; },
   },
   {
     id: 'Homing_Missle', icon: '🎯', name: 'Homing_Missle',
-    desc: 'Your bullets curve toward nearby viruses (stronger per stack).',
+    desc: '<b class="good">Bullets curve toward viruses</b>',
     apply: () => { player.homing += 1; },
   },
 ];
@@ -960,6 +1069,15 @@ function spawnVirus() {
     speed = baseSpeed * 0.8;
     r = 18;
     color = '#9c1414'; glow = 'rgba(140,15,15,0.24)';
+  } else if (roll < 0.63 && wave >= 4) {
+    // Charge_Virus: white circle that rams like Grin, but cheap & common
+    type = 'Charge_Virus';
+    shape = 'circle';
+    hp = 40;
+    speed = baseSpeed;
+    dmg = 1;
+    r = 13;
+    color = '#eef0f6'; glow = 'rgba(238,240,246,0.18)';
   } else if (roll < 0.74 && wave >= 5) {
     // Malware: SQUARE that keeps its distance and shoots orbs.
     // Base malware unlocks at wave 5, Purple at 7, Green at 8.
@@ -1016,24 +1134,34 @@ function spawnVirus() {
     r = 16;
     color = '#ffcf33'; glow = 'rgba(255,207,51,0.22)';
     splitCount = 3;
-  } else if (roll < 0.93 && wave >= 22) {
+  } else if (roll < 0.91 && wave >= 18) {
+    // Grin: a tiny pale-pink Smile that rams you with its body
+    type = 'Grin';
+    shape = 'face';
+    hp = 1000;
+    speed = baseSpeed;   // fast
+    dmg = 2;
+    r = 18;
+    color = '#ffc2d4'; glow = 'rgba(255,194,212,0.22)';
+  } else if (roll < 0.93 && wave >= 20) {
+    // Keeper: a green teleporting lock that swings a big key up close
+    type = 'Keeper';
+    shape = 'lock';
+    hp = 900;
+    speed = 90;
+    dmg = 2;
+    r = 20;
+    color = '#3ad54a'; glow = 'rgba(60,210,80,0.22)';
+  } else if (roll < 0.95 && wave >= 22) {
     // Peer: acts like Seek (drifts + radial bursts) but weaker, x4 less HP
-    if (wave >= 35 && Math.random() < 0.5) {
-      // Peer_alf2: shoots 8 bullets and has 50% more HP
-      type = 'Peer_alf2';
-      hp = Math.round(50 * 25 * 1.5);
-      bulletCount = 8;
-      color = '#12a8c9'; glow = 'rgba(18,168,201,0.22)';
-    } else {
-      type = 'Peer';
-      hp = Math.round(50 * 25);   // a quarter of Seek's health
-      bulletCount = 5;
-      color = '#19c3a6'; glow = 'rgba(25,195,166,0.22)';
-    }
+    type = 'Peer';
     shape = 'eye';
+    hp = Math.round(50 * 25);   // a quarter of Seek's health
+    bulletCount = 5;
     speed = 80;
     dmg = 2;
     r = 28;
+    color = '#19c3a6'; glow = 'rgba(25,195,166,0.22)';
   } else if (roll < 0.97 && wave >= 24) {
     // Great_Adware: orange triangle, bigger, splits into 5 minis
     type = 'Great_Adware';
@@ -1062,6 +1190,10 @@ function spawnVirus() {
     shootMin, shootMax, preferDist,
     // Peer (seek-like) AI fields
     moveTarget: { x, y }, moveTimer: 0, attackTimer: 1.5,
+    // Grin ram fields
+    ram: false, ramTime: 0, ramDir: 0,
+    // Keeper teleport + key-swing fields
+    teleportTimer: 2, swing: false, swingAngle: 0, swingTime: 0, swingHit: false,
     strafeDir: Math.random() < 0.5 ? 1 : -1,
     shootTimer: shootMin + Math.random() * (shootMax - shootMin),
     // virus: takes a step toward player every 1-2s with a randomized angle
@@ -1113,16 +1245,19 @@ function killVirus(v) {
 function spawnMiniAdware(x, y) {
   const baseHp = 50;
   const hp = Math.max(6, Math.round(baseHp * 0.3));
+  const lang = Math.random() * Math.PI * 2;
+  const lspeed = 800 + Math.random() * 500;  // flung outward on split
   viruses.push({
     id: virusId++,
     type: 'Mini_Adware',
     shape: 'triangle',
-    x: x + (Math.random() - 0.5) * 24,
-    y: y + (Math.random() - 0.5) * 24,
+    x: x + (Math.random() - 0.5) * 16,
+    y: y + (Math.random() - 0.5) * 16,
     r: 9,
     hp, maxHp: hp,
     speed: player.speed * (0.95 + Math.random() * 0.2),
     dmg: 1,
+    launchVx: Math.cos(lang) * lspeed, launchVy: Math.sin(lang) * lspeed, launchTime: 0.55,
     beam: false, beamDmg: 0, splitCount: 0,
     color: '#ffe27a', glow: 'rgba(255,226,122,0.22)',
     orbDamage: 1, orbColor: '#fff', orbGlow: 'rgba(255,255,255,0.3)',
@@ -1388,6 +1523,18 @@ function update(dt) {
     v.touchCooldown -= dt;
     v.wobble += dt * 4;
 
+    // launch burst (e.g. mini adware flung out when an adware splits)
+    if (v.launchTime > 0) {
+      v.launchTime -= dt;
+      v.x += v.launchVx * dt;
+      v.y += v.launchVy * dt;
+      v.launchVx *= 0.95;
+      v.launchVy *= 0.95;
+      v.x = Math.max(-WORLD / 2, Math.min(WORLD / 2, v.x));
+      v.y = Math.max(-WORLD / 2, Math.min(WORLD / 2, v.y));
+      continue;  // pure flight this frame — don't chase yet
+    }
+
     if (v.type === 'I_See_You_Exe') {
       // ----- Boss: slowly drift to random spots, attack on a timer -----
       v.moveTimer -= dt;
@@ -1527,7 +1674,80 @@ function update(dt) {
       continue;
     }
 
-    if (v.type === 'Peer' || v.type === 'Peer_alf2') {
+    if (v.type === 'Grin' || v.type === 'Charge_Virus') {
+      // ----- Grin / Charge_Virus: chase, then ram with the body -----
+      v.wobble += dt * 4;
+      const gdist = Math.hypot(player.x - v.x, player.y - v.y);
+      if (v.ram) {
+        v.ramTime -= dt;
+        v.x += Math.cos(v.ramDir) * v.speed * 2.8 * dt;
+        v.y += Math.sin(v.ramDir) * v.speed * 2.8 * dt;
+        if (v.ramTime <= 0) v.ram = false;
+      } else {
+        const a = Math.atan2(player.y - v.y, player.x - v.x);
+        v.x += Math.cos(a) * v.speed * dt;
+        v.y += Math.sin(a) * v.speed * dt;
+        v.attackTimer -= dt;
+        if (v.attackTimer <= 0 && gdist < 380) {
+          v.ram = true; v.ramTime = 0.4; v.ramDir = a;
+          v.attackTimer = 1.3 + Math.random();
+        }
+      }
+      v.x = Math.max(-half, Math.min(half, v.x));
+      v.y = Math.max(-half, Math.min(half, v.y));
+      if (gdist < v.r + player.r && v.touchCooldown <= 0) {
+        v.touchCooldown = 0.5;
+        hurtPlayer(v.dmg, v.color);
+      }
+      continue;
+    }
+
+    if (v.type === 'Keeper') {
+      // ----- Keeper: green lock that teleports and swings a big key up close -----
+      v.wobble += dt * 4;
+      const kdist = Math.hypot(player.x - v.x, player.y - v.y);
+      v.teleportTimer -= dt;
+      if (v.teleportTimer <= 0 && !v.swing) {
+        spawnParticles(v.x, v.y, v.color, 14, 180);
+        const ta = Math.random() * Math.PI * 2, td = 170 + Math.random() * 130;
+        v.x = Math.max(-half, Math.min(half, player.x + Math.cos(ta) * td));
+        v.y = Math.max(-half, Math.min(half, player.y + Math.sin(ta) * td));
+        spawnShockwave(v.x, v.y, 90, v.color, 0.3);
+        spawnParticles(v.x, v.y, v.color, 14, 180);
+        v.teleportTimer = 3 + Math.random() * 2;
+      }
+      if (v.swing) {
+        v.swingTime -= dt;
+        v.swingAngle += dt * 6.5;  // sweep the key around
+        const reach = v.r * 2.6;
+        const kx = v.x + Math.cos(v.swingAngle) * reach;
+        const ky = v.y + Math.sin(v.swingAngle) * reach;
+        if (!v.swingHit && Math.hypot(kx - player.x, ky - player.y) < player.r + 22) {
+          hurtPlayer(v.dmg, v.color); v.swingHit = true;
+        }
+        if (v.swingTime <= 0) v.swing = false;
+      } else {
+        const a = Math.atan2(player.y - v.y, player.x - v.x);
+        v.x += Math.cos(a) * v.speed * dt;
+        v.y += Math.sin(a) * v.speed * dt;
+        v.attackTimer -= dt;
+        if (v.attackTimer <= 0 && kdist < 130) {
+          v.swing = true; v.swingHit = false;
+          v.swingAngle = a - 1.5; v.swingTime = 0.5;
+          v.attackTimer = 1.6 + Math.random();
+          addShake(6, 0.15);
+        }
+      }
+      v.x = Math.max(-half, Math.min(half, v.x));
+      v.y = Math.max(-half, Math.min(half, v.y));
+      if (kdist < v.r + player.r && v.touchCooldown <= 0) {
+        v.touchCooldown = 0.6;
+        hurtPlayer(v.dmg, v.color);
+      }
+      continue;
+    }
+
+    if (v.type === 'Peer') {
       // ----- Peer: drifts like Seek and fires a ring of bullets -----
       v.moveTimer -= dt;
       const tdx = v.moveTarget.x - v.x, tdy = v.moveTarget.y - v.y;
@@ -2240,17 +2460,17 @@ function render() {
         ctx.lineWidth = lw;
         ctx.strokeRect(cx - half2, cy - half2, half2 * 2, half2 * 2);
       };
-      // hands first
-      for (const h of v.hands) {
+      // hands first (Smile boss only — Grin has none)
+      for (const h of (v.hands || [])) {
         const hs = worldToScreen(h.x, h.y);
         const charging = h.state === 'charge' || h.state === 'aim';
-        drawSquare(hs.x, hs.y, 22, charging ? '#ff5b8f' : '#ffffff', 4);
+        drawSquare(hs.x, hs.y, 22, charging ? '#ff5b8f' : v.color, 4);
       }
       // body
       const rr = v.r + wob;
-      drawSquare(s.x, s.y, rr, '#ffffff', 6);
-      // ":]" face in neon white
-      ctx.fillStyle = '#eaf0ff';
+      drawSquare(s.x, s.y, rr, v.color, 6);
+      // ":]" face tinted to the enemy colour
+      ctx.fillStyle = v.color;
       ctx.font = 'bold ' + Math.round(rr * 1.1) + 'px Segoe UI, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -2320,6 +2540,18 @@ function render() {
       ctx.arc(s.x, s.y + bh * 0.18, rr * 0.16, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillRect(s.x - rr * 0.06, s.y + bh * 0.18, rr * 0.12, rr * 0.34);
+      // Keeper's big swinging key (only while swinging)
+      if (v.swing) {
+        const reach = rr * 2.6;
+        const kx = s.x + Math.cos(v.swingAngle) * reach;
+        const ky = s.y + Math.sin(v.swingAngle) * reach;
+        ctx.strokeStyle = '#ffe27a'; ctx.lineWidth = 7;
+        ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(kx, ky); ctx.stroke();
+        ctx.fillStyle = '#ffe27a';
+        ctx.beginPath(); ctx.arc(kx, ky, 10, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.arc(kx, ky, 4, 0, Math.PI * 2); ctx.fill();
+      }
     } else if (v.shape === 'proto') {
       // Proto_Type: a snake of 10 rounded white squares, each with a different eye
       const trail = v.trail || [];
@@ -2836,12 +3068,138 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 
+// ---- Virusionary (enemy bestiary) ----
+let inDex = false;
+const DEX_CATS = [
+  { id: 'Virus', label: 'Viruses', color: '#ff5a6a' },
+  { id: 'Malware', label: 'Malware', color: '#3b78ff' },
+  { id: 'Adware', label: 'Adware', color: '#ffcf33' },
+  { id: 'Mini', label: 'Mini-Programs', color: '#19c3a6' },
+  { id: 'Boss', label: 'Programs (Bosses)', color: '#b06bff' },
+];
+const VIRUSDEX = [
+  // Viruses
+  { name: 'Virus', cat: 'Virus', shape: 'circle', color: '#ff3b3b', hp: '50', dm: '1', sp: 'Normal', wave: '1+', fx: 'Chases you with random-angle steps.' },
+  { name: 'Fast_Virus', cat: 'Virus', shape: 'circle', color: '#ff9a9a', hp: '~28', dm: '2', sp: 'Very fast (×1.8)', wave: '3+', fx: 'Low HP, but rushes you and hits harder.' },
+  { name: 'Strong_Virus', cat: 'Virus', shape: 'circle', color: '#9c1414', hp: '100 (×2)', dm: '1', sp: 'Slow (×0.8)', wave: '3+', fx: 'Tanky and a bit bigger.' },
+  { name: 'Charge_Virus', cat: 'Virus', shape: 'circle', color: '#eef0f6', hp: '40', dm: '1', sp: 'Fast', wave: '4+', fx: 'Common white circle that <b>rams</b> you like Grin.' },
+  // Malware
+  { name: 'Malware', cat: 'Malware', shape: 'square', color: '#3b78ff', hp: '~30', dm: '1', sp: 'Kites', wave: '5+', fx: '<b>Shoots</b> orbs while keeping distance.' },
+  { name: 'Purple_malware', cat: 'Malware', shape: 'square', color: '#b14bff', hp: '~22', dm: '1', sp: 'Kites', wave: '7+', fx: '<b>Shoots fast</b>, but very low HP.' },
+  { name: 'Green_malware', cat: 'Malware', shape: 'square', color: '#3ad54a', hp: '~65', dm: '1', sp: 'Kites', wave: '8+', fx: '<b>Shoots slowly</b>, high HP.' },
+  { name: 'Cyan_malware', cat: 'Malware', shape: 'square', color: '#2ee6e6', hp: '~35', dm: '2', sp: 'Kites', wave: '12+', fx: 'Fires a <b>laser</b> (telegraph, then 1s beam).' },
+  // Adware
+  { name: 'Adware', cat: 'Adware', shape: 'triangle', color: '#ffcf33', hp: '~45', dm: '1', sp: 'Fast', wave: '14+', fx: '<b>Splits</b> into 3 Mini_Adware on death.' },
+  { name: 'Great_Adware', cat: 'Adware', shape: 'triangle', color: '#ff8c1a', hp: '~70', dm: '1', sp: 'Fast', wave: '24+', fx: 'Bigger; <b>splits</b> into 5 Mini_Adware.' },
+  // Mini-Programs
+  { name: 'Mini_Adware', cat: 'Adware', shape: 'triangle', color: '#ffe27a', hp: '~15', dm: '1', sp: 'Fast', wave: 'Spawned', fx: 'Pops out when an Adware dies.' },
+  { name: 'Peer', cat: 'Mini', shape: 'eye', color: '#19c3a6', hp: '1250', dm: '2', sp: 'Drifts', wave: '22+', fx: 'Drifts like Seek; <b>shoots</b> 5 bullets in a ring.' },
+  { name: 'Grin', cat: 'Mini', shape: 'face', color: '#ffc2d4', hp: '1000', dm: '2', sp: 'Fast', wave: '18+', fx: 'A tiny pale-pink Smile that <b>rams</b> you with its body.' },
+  { name: 'Keeper', cat: 'Mini', shape: 'lock', color: '#3ad54a', hp: '900', dm: '2', sp: 'Teleports', wave: '20+', fx: 'Green lock; teleports and <b>swings a big key</b> when close.' },
+  // Programs (Bosses)
+  { name: 'I_See_You_Exe', cat: 'Boss', shape: 'eye', color: '#ff2e6e', hp: '9000', dm: '3', sp: 'Slow', wave: '10', fx: '<b>Shoots</b> radial bursts & rapid volleys.' },
+  { name: 'smile_json', cat: 'Boss', shape: 'face', color: '#f3f3fb', hp: '9000', dm: '3', sp: 'Slow', wave: '20', fx: 'Charging hands; <b>summons</b> minions.' },
+  { name: 'Intruption_Jpeg', cat: 'Boss', shape: 'star', color: '#ffd23a', hp: '8000', dm: '3', sp: 'Fast', wave: '30', fx: '<b>Shoots</b> + charges, then <b>splits</b> into 2.' },
+  { name: 'Its_Mine_Now', cat: 'Boss', shape: 'lock', color: '#3b6bff', hp: '7500', dm: '3', sp: 'Teleports', wave: '40', fx: 'Teleports, fires <b>lasers</b>, keys lock your attacks.' },
+  { name: 'Proto_Type', cat: 'Boss', shape: 'proto', color: '#f3f3fb', hp: '39000', dm: '3', sp: 'Very fast', wave: '50', fx: 'Snake of eyes; <b>summons</b> every past boss.' },
+];
+
+function drawDexIcon(cv, e) {
+  const c = cv.getContext('2d');
+  const W2 = cv.width, H2 = cv.height, cx = W2 / 2, cy = H2 / 2, r = 22;
+  c.clearRect(0, 0, W2, H2);
+  c.lineWidth = 4; c.strokeStyle = e.color; c.fillStyle = '#000';
+  if (e.shape === 'circle') {
+    c.beginPath(); c.arc(cx, cy, r, 0, Math.PI * 2); c.fill(); c.stroke();
+  } else if (e.shape === 'square') {
+    c.fillRect(cx - r, cy - r, r * 2, r * 2); c.strokeRect(cx - r, cy - r, r * 2, r * 2);
+  } else if (e.shape === 'triangle') {
+    c.beginPath();
+    for (let k = 0; k < 3; k++) { const a = -Math.PI / 2 + k * (Math.PI * 2 / 3); const fn = k ? 'lineTo' : 'moveTo'; c[fn](cx + Math.cos(a) * r, cy + Math.sin(a) * r); }
+    c.closePath(); c.fill(); c.stroke();
+  } else if (e.shape === 'eye') {
+    c.beginPath(); c.ellipse(cx, cy, r, r * 0.7, 0, 0, Math.PI * 2); c.fill(); c.stroke();
+    c.beginPath(); c.arc(cx + 6, cy, r * 0.4, 0, Math.PI * 2); c.fillStyle = e.color; c.fill();
+    c.beginPath(); c.arc(cx + 6, cy, r * 0.17, 0, Math.PI * 2); c.fillStyle = '#000'; c.fill();
+  } else if (e.shape === 'face') {
+    c.fillRect(cx - r, cy - r, r * 2, r * 2); c.strokeRect(cx - r, cy - r, r * 2, r * 2);
+    c.fillStyle = e.color; c.font = 'bold 26px Segoe UI, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText(':]', cx, cy + 2); c.textBaseline = 'alphabetic';
+  } else if (e.shape === 'star') {
+    c.beginPath();
+    for (let k = 0; k < 12; k++) { const rad = (k % 2 === 0) ? r : r * 0.5; const a = -Math.PI / 2 + k * (Math.PI / 6); const fn = k ? 'lineTo' : 'moveTo'; c[fn](cx + Math.cos(a) * rad, cy + Math.sin(a) * rad); }
+    c.closePath(); c.fill(); c.stroke();
+    c.beginPath();
+    for (let k = 0; k < 3; k++) { const a = -Math.PI / 2 + k * (Math.PI * 2 / 3); const fn = k ? 'lineTo' : 'moveTo'; c[fn](cx + Math.cos(a) * r * 0.42, cy + Math.sin(a) * r * 0.42); }
+    c.closePath(); c.strokeStyle = '#ff3b3b'; c.lineWidth = 3; c.stroke();
+  } else if (e.shape === 'lock') {
+    c.beginPath(); c.arc(cx, cy - 6, r * 0.5, Math.PI, 0); c.lineWidth = 5; c.stroke();
+    c.lineWidth = 4; c.fillRect(cx - r * 0.75, cy - 2, r * 1.5, r * 1.25); c.strokeRect(cx - r * 0.75, cy - 2, r * 1.5, r * 1.25);
+    c.fillStyle = '#ff9b1a'; c.beginPath(); c.arc(cx, cy + r * 0.45, 4, 0, Math.PI * 2); c.fill();
+  } else if (e.shape === 'proto') {
+    const eyes = ['#ff2e6e', '#ffd23a', '#3b6bff'];
+    for (let i = 0; i < 3; i++) {
+      const sx = cx - 17 + i * 17, h = 13 - i * 2;
+      c.fillStyle = '#000'; c.fillRect(sx - h, cy - h, h * 2, h * 2);
+      c.strokeStyle = '#f3f3fb'; c.lineWidth = 3; c.strokeRect(sx - h, cy - h, h * 2, h * 2);
+      c.beginPath(); c.arc(sx, cy, h * 0.5, 0, Math.PI * 2); c.fillStyle = eyes[i]; c.fill();
+    }
+  }
+}
+
+function renderDexList(catId) {
+  const cat = DEX_CATS.find(c => c.id === catId);
+  const list = document.getElementById('dexList');
+  list.innerHTML = '';
+  for (const e of VIRUSDEX.filter(v => v.cat === catId)) {
+    const card = document.createElement('div');
+    card.className = 'dex-entry';
+    card.innerHTML =
+      '<canvas class="dex-icon" width="72" height="72"></canvas>' +
+      '<div class="dex-info">' +
+        '<div class="dex-name">' + e.name + ' <span class="dex-cat" style="background:' + cat.color + '">' + cat.label + '</span></div>' +
+        '<div class="dex-grid">' +
+          '<span>HP <b>' + e.hp + '</b></span>' +
+          '<span>DM <b>' + e.dm + '</b></span>' +
+          '<span>SP <b>' + e.sp + '</b></span>' +
+          '<span>Wave <b>' + e.wave + '</b></span>' +
+        '</div>' +
+        '<div class="dex-fx">' + e.fx + '</div>' +
+      '</div>';
+    list.appendChild(card);
+    drawDexIcon(card.querySelector('canvas'), e);
+  }
+}
+
+function buildDexTabs() {
+  const tabs = document.getElementById('dexTabs');
+  tabs.innerHTML = '';
+  DEX_CATS.forEach((cat, i) => {
+    const t = document.createElement('div');
+    t.className = 'dex-tab' + (i === 0 ? ' active' : '');
+    t.textContent = cat.label;
+    t.style.setProperty('--tabcol', cat.color);
+    t.addEventListener('click', () => {
+      tabs.querySelectorAll('.dex-tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      renderDexList(cat.id);
+    });
+    tabs.appendChild(t);
+  });
+  renderDexList(DEX_CATS[0].id);
+}
+
+function openDex() { initAudio(); inDex = true; buildDexTabs(); document.getElementById('dex').classList.remove('hidden'); }
+function closeDex() { inDex = false; document.getElementById('dex').classList.add('hidden'); }
+document.getElementById('dexBtn').addEventListener('mousedown', e => { e.stopPropagation(); openDex(); });
+document.getElementById('dexClose').addEventListener('click', closeDex);
+
 // ---- Start / restart ----
 canvas.addEventListener('mousedown', () => {
-  if (!running && !inUpgrade && !inAdmin) startGame();
+  if (!running && !inUpgrade && !inAdmin && !inDex) startGame();
 });
 overlay.addEventListener('mousedown', () => {
-  if (!running && !inUpgrade && !inAdmin) startGame();
+  if (!running && !inUpgrade && !inAdmin && !inDex) startGame();
 });
 </script>
 </body>
