@@ -402,9 +402,12 @@ const player = {
   firewallSqs: [],      // orbiting fire squares
   firewallAngle: 0,
   homing: 0,            // bullet homing level
+  flame: 0,             // flame-thrower level (fire-orb chance + burn strength)
 };
 function laserMax() { return Math.max(0.8, 2.5 - (player.laser - 1) * 0.4); }
-function dashMax() { return Math.max(1.0, 2.6 - (player.dash - 1) * 0.4); }
+function dashMax() { return Math.max(0.7, 2.6 - (player.dash - 1) * 0.35); }
+function dashDuration() { return 0.18 + (player.dash - 1) * 0.025; }  // a little longer per stack
+function dashDamage() { return 40 + (player.dash - 1) * 14; }
 function cannonMax() { return Math.max(0.7, 2.2 - (player.cannon - 1) * 0.3); }
 let orbs = [];        // player bullets
 let beams = [];       // laser beam visuals
@@ -486,6 +489,7 @@ function startGame() {
   player.firewallSqs = [];
   player.firewallAngle = 0;
   player.homing = 0;
+  player.flame = 0;
   inUpgrade = false;
   inAdmin = false;
   boss = null;
@@ -844,16 +848,33 @@ function summonSubBoss(kind, x, y) {
 
 // ---- Upgrades ----
 const UPGRADES = [
+  // --- small upgrades: little to no downside ---
   {
     id: 'Fire_rate', icon: '⚡', name: 'Fire_rate',
-    desc: '<b class="good">+25% fire rate</b>',
-    apply: () => { player.fireRate = Math.max(0.07, player.fireRate * 0.8); },
+    desc: '<b class="good">+25% fire rate</b> · <b class="bad">−5% damage</b>',
+    apply: () => { player.fireRate = Math.max(0.07, player.fireRate * 0.8); player.bulletDamage *= 0.95; },
   },
   {
-    id: 'Damage_Up', icon: '💥', name: 'Damage_Up',
-    desc: '<b class="good">+50% damage</b>',
-    apply: () => { player.bulletDamage = player.bulletDamage * 1.5; },
+    id: 'Focus', icon: '🎯', name: 'Focus',
+    desc: '<b class="good">−35% spread</b>',
+    apply: () => { player.spread = Math.max(0.02, player.spread * 0.65); },
   },
+  {
+    id: 'Life_steal', icon: '🩸', name: 'Life_steal',
+    desc: '<b class="good">On kill: 5% chance to heal 1 HP</b>',
+    apply: () => { player.lifesteal += 1; },
+  },
+  {
+    id: 'Homing_Missle', icon: '🎯', name: 'Homing_Missle',
+    desc: '<b class="good">Bullets curve toward viruses</b>',
+    apply: () => { player.homing += 1; },
+  },
+  {
+    id: 'Flame_Thrower', icon: '🔥', name: 'Flame_Thrower',
+    desc: '<b class="good">5% chance per shot to ignite — burns over time</b> · +chance & strength/stack',
+    apply: () => { player.flame += 1; },
+  },
+  // --- medium upgrades: small downside ---
   {
     id: 'Shotgun', icon: '🔫', name: 'Shotgun',
     desc: '<b class="good">+1 orb</b> · <b class="bad">widens spread</b>',
@@ -861,19 +882,52 @@ const UPGRADES = [
   },
   {
     id: 'Piercing', icon: '🏹', name: 'Piercing',
-    desc: '<b class="good">Orbs pierce +1 virus</b>',
-    apply: () => { player.pierce += 1; },
+    desc: '<b class="good">Orbs pierce +1 virus</b> · <b class="bad">−10% fire rate</b>',
+    apply: () => { player.pierce += 1; player.fireRate *= 1.11; },
+  },
+  {
+    id: 'Explosive', icon: '🧨', name: 'Explosive',
+    desc: '<b class="good">Orbs burst into 3 shards on hit</b> · +1/stack · <b class="bad">−10% fire rate</b>',
+    apply: () => { player.explosive += 1; player.fireRate *= 1.11; },
+  },
+  {
+    id: 'Fire_wall', icon: '🔥', name: 'Fire_wall',
+    desc: '<b class="good">+2 fire squares orbit you</b> · <b class="bad">−10% damage</b>',
+    apply: () => { player.firewallSqs.push({ hitCd: 0 }, { hitCd: 0 }); player.bulletDamage *= 0.9; },
+  },
+  {
+    id: 'Dash', icon: '💨', name: 'Dash',
+    desc: '<b class="good">Shift to dash</b> · immune + damages on contact · <b class="good">faster, longer & stronger per stack</b>',
+    apply: () => { player.dash += 1; },
+  },
+  // --- big upgrades: big downside ---
+  {
+    id: 'Damage_Up', icon: '💥', name: 'Damage_Up',
+    desc: '<b class="good">+50% damage</b> · <b class="bad">−25% fire rate</b>',
+    apply: () => { player.bulletDamage *= 1.5; player.fireRate *= 1.33; },
   },
   {
     id: 'Drone', icon: '🛸', name: 'Drone',
-    desc: '<b class="good">Summons a drone</b> · auto-fires at 50% damage',
+    desc: '<b class="good">Summons a drone</b> · auto-fires at 50% dmg · <b class="bad">−15% your damage</b>',
     apply: () => {
-      drones.push({
-        angle: Math.random() * Math.PI * 2, // orbit position
-        x: player.x, y: player.y,
-        fireCooldown: Math.random() * 0.3,
-      });
+      drones.push({ angle: Math.random() * Math.PI * 2, x: player.x, y: player.y, fireCooldown: Math.random() * 0.3 });
+      player.bulletDamage *= 0.85;
     },
+  },
+  {
+    id: 'Healthy', icon: '💚', name: 'Healthy',
+    desc: '<b class="good">+50% max HP</b> · <b class="bad">−15% damage</b>',
+    apply: () => { const inc = Math.round(player.maxHp * 0.5); player.maxHp += inc; player.hp += inc; player.bulletDamage *= 0.85; },
+  },
+  {
+    id: 'Lazer', icon: '🔆', name: 'Lazer',
+    desc: '<b class="good">Adds a laser</b> · pierces all, 150% dmg · <b class="bad">long cooldown · −15% damage</b>',
+    apply: () => { player.laser += 1; player.bulletDamage *= 0.85; },
+  },
+  {
+    id: 'Cannon', icon: '💣', name: 'Cannon',
+    desc: '<b class="good">Cannonball bursts into 5 bullets</b> · +3/stack · <b class="bad">−20% fire rate</b>',
+    apply: () => { player.cannon += 1; player.fireRate *= 1.25; },
   },
   {
     id: 'Minigun', icon: '🔥', name: 'Minigun',
@@ -882,51 +936,6 @@ const UPGRADES = [
       player.fireRate = Math.max(0.04, player.fireRate * 0.45);
       player.bulletDamage = Math.max(1, player.bulletDamage * 0.3);
     },
-  },
-  {
-    id: 'Focus', icon: '🎯', name: 'Focus',
-    desc: '<b class="good">−35% spread</b>',
-    apply: () => { player.spread = Math.max(0.02, player.spread * 0.65); },
-  },
-  {
-    id: 'Lazer', icon: '🔆', name: 'Lazer',
-    desc: '<b class="good">Adds a laser</b> · pierces all, 150% damage · <b class="bad">long cooldown</b>',
-    apply: () => { player.laser += 1; },
-  },
-  {
-    id: 'Dash', icon: '💨', name: 'Dash',
-    desc: '<b class="good">Shift to dash</b> · immune + damages viruses you cross',
-    apply: () => { player.dash += 1; },
-  },
-  {
-    id: 'Healthy', icon: '💚', name: 'Healthy',
-    desc: '<b class="good">+50% max HP</b>',
-    apply: () => { const inc = Math.round(player.maxHp * 0.5); player.maxHp += inc; player.hp += inc; },
-  },
-  {
-    id: 'Life_steal', icon: '🩸', name: 'Life_steal',
-    desc: '<b class="good">On kill: 5% chance to heal 1 HP</b>',
-    apply: () => { player.lifesteal += 1; },
-  },
-  {
-    id: 'Explosive', icon: '🧨', name: 'Explosive',
-    desc: '<b class="good">Orbs burst into 3 shards on hit</b> · +1 per stack',
-    apply: () => { player.explosive += 1; },
-  },
-  {
-    id: 'Fire_wall', icon: '🔥', name: 'Fire_wall',
-    desc: '<b class="good">+2 fire squares</b> orbit you, burning viruses on contact',
-    apply: () => { player.firewallSqs.push({ hitCd: 0 }, { hitCd: 0 }); },
-  },
-  {
-    id: 'Cannon', icon: '💣', name: 'Cannon',
-    desc: '<b class="good">Cannonball bursts into 5 bullets on impact</b> · +3 per stack',
-    apply: () => { player.cannon += 1; },
-  },
-  {
-    id: 'Homing_Missle', icon: '🎯', name: 'Homing_Missle',
-    desc: '<b class="good">Bullets curve toward viruses</b>',
-    apply: () => { player.homing += 1; },
   },
 ];
 
@@ -1046,7 +1055,7 @@ function spawnVirus() {
   let type = 'normal', r = 14, shape = 'circle';
   let hp = baseHp, speed = baseSpeed;
   let dmg = 1;  // damage this virus deals (contact and its bullets)
-  let beam = false, beamDmg = 2, splitCount = 0, bulletCount = 5;
+  let beam = false, beamDmg = 2, splitCount = 0, bulletCount = 5, fireEvery = 2.4;
   let color = '#ff3b3b', glow = 'rgba(255,60,60,0.18)';
   // malware-only fields (defaults harmless for non-malware)
   let orbDamage = 10, orbColor = '#4a86ff', orbGlow = 'rgba(70,130,255,0.3)';
@@ -1134,34 +1143,29 @@ function spawnVirus() {
     r = 16;
     color = '#ffcf33'; glow = 'rgba(255,207,51,0.22)';
     splitCount = 3;
-  } else if (roll < 0.91 && wave >= 18) {
-    // Grin: a tiny pale-pink Smile that rams you with its body
-    type = 'Grin';
-    shape = 'face';
-    hp = 1000;
-    speed = baseSpeed;   // fast
-    dmg = 2;
-    r = 18;
-    color = '#ffc2d4'; glow = 'rgba(255,194,212,0.22)';
-  } else if (roll < 0.93 && wave >= 20) {
-    // Keeper: a green teleporting lock that swings a big key up close
-    type = 'Keeper';
-    shape = 'lock';
-    hp = 900;
-    speed = 90;
-    dmg = 2;
-    r = 20;
-    color = '#3ad54a'; glow = 'rgba(60,210,80,0.22)';
-  } else if (roll < 0.95 && wave >= 22) {
-    // Peer: acts like Seek (drifts + radial bursts) but weaker, x4 less HP
-    type = 'Peer';
+  } else if (roll < 0.94 && wave >= 22) {
+    // Spyware: floating eyes that drift like Seek and fire bullet rings.
     shape = 'eye';
     hp = Math.round(50 * 25);   // a quarter of Seek's health
-    bulletCount = 5;
     speed = 80;
     dmg = 2;
     r = 28;
-    color = '#19c3a6'; glow = 'rgba(25,195,166,0.22)';
+    const pr = Math.random();
+    if (pr < 0.34) {
+      // Orange: fewer bullets, but fires more often
+      type = 'Orange_Peer';
+      bulletCount = 3; fireEvery = 1.2;
+      color = '#ff8c1a'; glow = 'rgba(255,140,26,0.22)';
+    } else if (pr < 0.67) {
+      // Yellow: more bullets, but fires less often
+      type = 'Yellow_Peer';
+      bulletCount = 8; fireEvery = 3.6;
+      color = '#ffd23a'; glow = 'rgba(255,210,58,0.22)';
+    } else {
+      type = 'Peer';
+      bulletCount = 5; fireEvery = 2.4;
+      color = '#19c3a6'; glow = 'rgba(25,195,166,0.22)';
+    }
   } else if (roll < 0.97 && wave >= 24) {
     // Great_Adware: orange triangle, bigger, splits into 5 minis
     type = 'Great_Adware';
@@ -1184,7 +1188,7 @@ function spawnVirus() {
     hp, maxHp: hp,
     speed,
     dmg,
-    beam, beamDmg, splitCount, bulletCount,
+    beam, beamDmg, splitCount, bulletCount, fireEvery,
     color, glow,
     orbDamage, orbColor, orbGlow,
     shootMin, shootMax, preferDist,
@@ -1288,7 +1292,7 @@ function update(dt) {
       if (player.dashHits.has(v.id) || v.invuln) continue;
       if (Math.hypot(v.x - player.x, v.y - player.y) < v.r + player.r + 6) {
         player.dashHits.add(v.id);
-        v.hp -= 40;
+        v.hp -= dashDamage();
         spawnParticles(v.x, v.y, v.color, 8, 150);
         if (v.hp <= 0) { viruses.splice(j, 1); killVirus(v); }
       }
@@ -1674,8 +1678,8 @@ function update(dt) {
       continue;
     }
 
-    if (v.type === 'Grin' || v.type === 'Charge_Virus') {
-      // ----- Grin / Charge_Virus: chase, then ram with the body -----
+    if (v.type === 'Charge_Virus') {
+      // ----- Charge_Virus: chase, then ram with the body -----
       v.wobble += dt * 4;
       const gdist = Math.hypot(player.x - v.x, player.y - v.y);
       if (v.ram) {
@@ -1702,53 +1706,8 @@ function update(dt) {
       continue;
     }
 
-    if (v.type === 'Keeper') {
-      // ----- Keeper: green lock that teleports and swings a big key up close -----
-      v.wobble += dt * 4;
-      const kdist = Math.hypot(player.x - v.x, player.y - v.y);
-      v.teleportTimer -= dt;
-      if (v.teleportTimer <= 0 && !v.swing) {
-        spawnParticles(v.x, v.y, v.color, 14, 180);
-        const ta = Math.random() * Math.PI * 2, td = 170 + Math.random() * 130;
-        v.x = Math.max(-half, Math.min(half, player.x + Math.cos(ta) * td));
-        v.y = Math.max(-half, Math.min(half, player.y + Math.sin(ta) * td));
-        spawnShockwave(v.x, v.y, 90, v.color, 0.3);
-        spawnParticles(v.x, v.y, v.color, 14, 180);
-        v.teleportTimer = 3 + Math.random() * 2;
-      }
-      if (v.swing) {
-        v.swingTime -= dt;
-        v.swingAngle += dt * 6.5;  // sweep the key around
-        const reach = v.r * 2.6;
-        const kx = v.x + Math.cos(v.swingAngle) * reach;
-        const ky = v.y + Math.sin(v.swingAngle) * reach;
-        if (!v.swingHit && Math.hypot(kx - player.x, ky - player.y) < player.r + 22) {
-          hurtPlayer(v.dmg, v.color); v.swingHit = true;
-        }
-        if (v.swingTime <= 0) v.swing = false;
-      } else {
-        const a = Math.atan2(player.y - v.y, player.x - v.x);
-        v.x += Math.cos(a) * v.speed * dt;
-        v.y += Math.sin(a) * v.speed * dt;
-        v.attackTimer -= dt;
-        if (v.attackTimer <= 0 && kdist < 130) {
-          v.swing = true; v.swingHit = false;
-          v.swingAngle = a - 1.5; v.swingTime = 0.5;
-          v.attackTimer = 1.6 + Math.random();
-          addShake(6, 0.15);
-        }
-      }
-      v.x = Math.max(-half, Math.min(half, v.x));
-      v.y = Math.max(-half, Math.min(half, v.y));
-      if (kdist < v.r + player.r && v.touchCooldown <= 0) {
-        v.touchCooldown = 0.6;
-        hurtPlayer(v.dmg, v.color);
-      }
-      continue;
-    }
-
-    if (v.type === 'Peer') {
-      // ----- Peer: drifts like Seek and fires a ring of bullets -----
+    if (v.type === 'Peer' || v.type === 'Orange_Peer' || v.type === 'Yellow_Peer') {
+      // ----- Spyware: drifts like Seek and fires a ring of bullets -----
       v.moveTimer -= dt;
       const tdx = v.moveTarget.x - v.x, tdy = v.moveTarget.y - v.y;
       const tdist = Math.hypot(tdx, tdy);
@@ -1774,7 +1733,7 @@ function update(dt) {
             color: v.color, glow: v.glow,
           });
         }
-        v.attackTimer = 2.0 + Math.random();
+        v.attackTimer = (v.fireEvery || 2.4) + Math.random() * 0.4;
       }
       v.x = Math.max(-half, Math.min(half, v.x));
       v.y = Math.max(-half, Math.min(half, v.y));
@@ -2123,6 +2082,17 @@ function update(dt) {
     if (bm.life <= 0) enemyBeams.splice(i, 1);
   }
 
+  // Burning viruses (Flame_Thrower) take damage over time
+  for (let i = viruses.length - 1; i >= 0; i--) {
+    const v = viruses[i];
+    if (v.burn > 0 && !v.invuln) {
+      v.burn -= dt;
+      v.hp -= v.burnDps * dt;
+      if (Math.random() < 0.25) spawnParticles(v.x, v.y, '#ff6a1a', 1, 70);
+      if (v.hp <= 0) { viruses.splice(i, 1); killVirus(v); }
+    }
+  }
+
   // Orb vs virus collisions
   for (let i = orbs.length - 1; i >= 0; i--) {
     const o = orbs[i];
@@ -2134,7 +2104,9 @@ function update(dt) {
       if (d < o.r + v.r) {
         v.hp -= o.dmg;
         o.hit.add(v.id);
-        spawnParticles(o.x, o.y, o.cannon ? '#ff7a2a' : '#ffd84a', o.cannon ? 10 : 5, o.cannon ? 160 : 100);
+        spawnParticles(o.x, o.y, o.fire ? '#ff6a1a' : (o.cannon ? '#ff7a2a' : '#ffd84a'), o.cannon ? 10 : 5, o.cannon ? 160 : 100);
+        // Flame_Thrower: ignite the virus (damage over time)
+        if (o.fire) { v.burn = 2.2; v.burnDps = Math.max(v.burnDps || 0, o.burnDps); }
         // Cannon: burst into normal bullets on impact, then vanish
         if (o.cannon) {
           for (let s = 0; s < o.splitN; s++) {
@@ -2219,6 +2191,8 @@ function nearestVirus(x, y) {
 // fire a single orb from (x,y) toward angle, dealing dmg.
 // child orbs (from Explosive) are smaller, short-lived, and don't explode again.
 function spawnOrb(x, y, angle, dmg, child) {
+  // Flame_Thrower: each non-child shot has a 5%-per-level chance to be a fire orb
+  const fire = !child && player.flame > 0 && Math.random() < 0.05 * player.flame;
   orbs.push({
     x, y,
     vx: Math.cos(angle) * player.bulletSpeed,
@@ -2228,6 +2202,8 @@ function spawnOrb(x, y, angle, dmg, child) {
     dmg,
     child: !!child,
     pierce: child ? 0 : player.pierce,
+    fire,
+    burnDps: fire ? (6 + (player.flame - 1) * 4) : 0,  // strength scales with stacks
     hit: new Set(),          // virus ids already hit (avoid double hits)
   });
 }
@@ -2255,7 +2231,7 @@ function tryDash() {
   if (keys.up) dy -= 1; if (keys.down) dy += 1;
   if (keys.left) dx -= 1; if (keys.right) dx += 1;
   player.dashDir = (dx || dy) ? Math.atan2(dy, dx) : aimAngle();
-  player.dashTime = 0.18;            // active dash duration (invulnerable)
+  player.dashTime = dashDuration();  // active dash duration (invulnerable)
   player.dashCooldown = dashMax();
   player.dashHits = new Set();
   sfx('dash');
@@ -2639,14 +2615,16 @@ function render() {
     }
   }
 
-  // orbs (yellow)
+  // orbs (yellow; fire orbs are orange)
   for (const o of orbs) {
     const s = worldToScreen(o.x, o.y);
-    ctx.fillStyle = 'rgba(255,216,74,0.3)';
+    const glow = o.fire ? 'rgba(255,106,26,0.4)' : 'rgba(255,216,74,0.3)';
+    const core = o.fire ? '#ff7a2a' : '#ffd84a';
+    ctx.fillStyle = glow;
     ctx.beginPath();
-    ctx.arc(s.x, s.y, o.r + 4, 0, Math.PI * 2);
+    ctx.arc(s.x, s.y, o.r + (o.fire ? 5 : 4), 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#ffd84a';
+    ctx.fillStyle = core;
     ctx.beginPath();
     ctx.arc(s.x, s.y, o.r, 0, Math.PI * 2);
     ctx.fill();
@@ -3074,7 +3052,7 @@ const DEX_CATS = [
   { id: 'Virus', label: 'Viruses', color: '#ff5a6a' },
   { id: 'Malware', label: 'Malware', color: '#3b78ff' },
   { id: 'Adware', label: 'Adware', color: '#ffcf33' },
-  { id: 'Mini', label: 'Mini-Programs', color: '#19c3a6' },
+  { id: 'Mini', label: 'Spyware', color: '#19c3a6' },
   { id: 'Boss', label: 'Programs (Bosses)', color: '#b06bff' },
 ];
 const VIRUSDEX = [
@@ -3082,7 +3060,7 @@ const VIRUSDEX = [
   { name: 'Virus', cat: 'Virus', shape: 'circle', color: '#ff3b3b', hp: '50', dm: '1', sp: 'Normal', wave: '1+', fx: 'Chases you with random-angle steps.' },
   { name: 'Fast_Virus', cat: 'Virus', shape: 'circle', color: '#ff9a9a', hp: '~28', dm: '2', sp: 'Very fast (×1.8)', wave: '3+', fx: 'Low HP, but rushes you and hits harder.' },
   { name: 'Strong_Virus', cat: 'Virus', shape: 'circle', color: '#9c1414', hp: '100 (×2)', dm: '1', sp: 'Slow (×0.8)', wave: '3+', fx: 'Tanky and a bit bigger.' },
-  { name: 'Charge_Virus', cat: 'Virus', shape: 'circle', color: '#eef0f6', hp: '40', dm: '1', sp: 'Fast', wave: '4+', fx: 'Common white circle that <b>rams</b> you like Grin.' },
+  { name: 'Charge_Virus', cat: 'Virus', shape: 'circle', color: '#eef0f6', hp: '40', dm: '1', sp: 'Fast', wave: '4+', fx: 'Common white circle that <b>rams</b> you with its body.' },
   // Malware
   { name: 'Malware', cat: 'Malware', shape: 'square', color: '#3b78ff', hp: '~30', dm: '1', sp: 'Kites', wave: '5+', fx: '<b>Shoots</b> orbs while keeping distance.' },
   { name: 'Purple_malware', cat: 'Malware', shape: 'square', color: '#b14bff', hp: '~22', dm: '1', sp: 'Kites', wave: '7+', fx: '<b>Shoots fast</b>, but very low HP.' },
@@ -3093,9 +3071,9 @@ const VIRUSDEX = [
   { name: 'Great_Adware', cat: 'Adware', shape: 'triangle', color: '#ff8c1a', hp: '~70', dm: '1', sp: 'Fast', wave: '24+', fx: 'Bigger; <b>splits</b> into 5 Mini_Adware.' },
   // Mini-Programs
   { name: 'Mini_Adware', cat: 'Adware', shape: 'triangle', color: '#ffe27a', hp: '~15', dm: '1', sp: 'Fast', wave: 'Spawned', fx: 'Pops out when an Adware dies.' },
-  { name: 'Peer', cat: 'Mini', shape: 'eye', color: '#19c3a6', hp: '1250', dm: '2', sp: 'Drifts', wave: '22+', fx: 'Drifts like Seek; <b>shoots</b> 5 bullets in a ring.' },
-  { name: 'Grin', cat: 'Mini', shape: 'face', color: '#ffc2d4', hp: '1000', dm: '2', sp: 'Fast', wave: '18+', fx: 'A tiny pale-pink Smile that <b>rams</b> you with its body.' },
-  { name: 'Keeper', cat: 'Mini', shape: 'lock', color: '#3ad54a', hp: '900', dm: '2', sp: 'Teleports', wave: '20+', fx: 'Green lock; teleports and <b>swings a big key</b> when close.' },
+  { name: 'Peer', cat: 'Mini', shape: 'eye', color: '#19c3a6', hp: '1250', dm: '2', sp: 'Drifts', wave: '22+', fx: 'Drifts like Seek; <b>shoots</b> 5 bullets every ~2.4s.' },
+  { name: 'Orange_Peer', cat: 'Mini', shape: 'eye', color: '#ff8c1a', hp: '1250', dm: '2', sp: 'Drifts', wave: '22+', fx: '<b>Shoots</b> 3 bullets, but far more often (~1.2s).' },
+  { name: 'Yellow_Peer', cat: 'Mini', shape: 'eye', color: '#ffd23a', hp: '1250', dm: '2', sp: 'Drifts', wave: '22+', fx: '<b>Shoots</b> 8 bullets, but rarely (~3.6s).' },
   // Programs (Bosses)
   { name: 'I_See_You_Exe', cat: 'Boss', shape: 'eye', color: '#ff2e6e', hp: '9000', dm: '3', sp: 'Slow', wave: '10', fx: '<b>Shoots</b> radial bursts & rapid volleys.' },
   { name: 'smile_json', cat: 'Boss', shape: 'face', color: '#f3f3fb', hp: '9000', dm: '3', sp: 'Slow', wave: '20', fx: 'Charging hands; <b>summons</b> minions.' },
