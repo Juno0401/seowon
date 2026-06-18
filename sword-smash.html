@@ -1,0 +1,1661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sword Smash</title>
+<style>
+  html, body {
+    margin: 0; padding: 0;
+    background: #0a0a12;
+    overflow: hidden;
+    height: 100%;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    color: #e8e8f4;
+    user-select: none;
+  }
+  #wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  canvas {
+    display: block;
+    background: linear-gradient(180deg, #1a2138 0%, #0e1322 60%, #0a0d18 100%);
+    box-shadow: 0 0 60px rgba(0,0,0,.6);
+    max-width: 100%; max-height: 100%;
+  }
+  .overlay {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center;
+    background: radial-gradient(900px 500px at 50% 30%, rgba(120,160,255,0.10), transparent 60%), rgba(8,8,16,0.92);
+    z-index: 10;
+    overflow-y: auto; padding: 20px 0;
+  }
+  .overlay.hidden { display: none; }
+  h1 {
+    font-size: clamp(40px, 8vw, 84px); margin: 0 0 6px; font-weight: 900; letter-spacing: 3px;
+    background: linear-gradient(100deg, #c8a24a, #e8e8f0 35%, #7af 60%, #ff6bd0 90%);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 4px 24px rgba(120,160,255,0.25));
+  }
+  .sub { color: #9aa; margin: 0 0 28px; letter-spacing: 1px; }
+  .row { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; margin: 10px 0; }
+  .btn {
+    background: #1a1a2a; border: 1px solid rgba(255,255,255,.14); color: #e8e8f4;
+    padding: 14px 26px; border-radius: 12px; font-size: 17px; font-weight: 700; cursor: pointer;
+    transition: transform .12s, border-color .12s, background .12s; letter-spacing: 1px;
+  }
+  .btn:hover { transform: translateY(-3px); border-color: #7af; background: #20203a; }
+  .btn.sel { border-color: #ffd84a; background: #2a2616; box-shadow: 0 0 24px -6px #ffd84a; }
+  .panel { background: rgba(20,20,32,.7); border: 1px solid rgba(255,255,255,.1); border-radius: 16px; padding: 26px 30px; margin: 8px; }
+  .label { font-size: 13px; letter-spacing: 3px; text-transform: uppercase; color: #8a8aa0; margin-bottom: 12px; }
+  .swatch { width: 54px; height: 54px; border-radius: 12px; border: 3px solid rgba(255,255,255,.15); cursor: pointer; transition: transform .12s; }
+  .swatch:hover { transform: scale(1.1); }
+  .swatch.sel { border-color: #fff; box-shadow: 0 0 22px -3px currentColor; transform: scale(1.12); }
+  .wbtn {
+    display:flex; flex-direction:column; align-items:center; gap:2px; min-width:88px;
+    background:#1a1a2a; border:1px solid rgba(255,255,255,.14); color:#e8e8f4;
+    padding:10px; border-radius:12px; cursor:pointer;
+    transition: transform .12s, border-color .12s, background .12s;
+  }
+  .wbtn:hover { transform: translateY(-3px); border-color:#7af; background:#20203a; }
+  .wbtn.sel { border-color:#ffd84a; background:#2a2616; box-shadow:0 0 22px -6px #ffd84a; }
+  .wbtn .wi { font-size:24px; line-height:1; }
+  .wbtn .wn { font-weight:700; font-size:14px; }
+  .wbtn .wb { font-size:11px; color:#8a8aa0; }
+  .keyhint { color: #8a8aa0; font-size: 13px; line-height: 1.9; margin-top: 18px; }
+  .keyhint b { color: #cfd2e6; }
+  kbd {
+    background:#222238; border:1px solid #44446a; border-bottom-width:2px; border-radius:6px;
+    padding:1px 7px; font-family:inherit; font-size:12px; color:#dfe2f0;
+  }
+  a.home { position: fixed; top: 14px; left: 16px; color: #8a8aa0; text-decoration: none; font-size: 14px; z-index: 20; }
+  a.home:hover { color: #7af; }
+</style>
+</head>
+<body>
+<a class="home" href="index.html">← back to games</a>
+<div id="wrap"><canvas id="cv" width="960" height="540"></canvas></div>
+
+<!-- MENU -->
+<div class="overlay" id="menu">
+  <h1>SWORD SMASH</h1>
+  <p class="sub">Forge your blade. Knock them off the stage.</p>
+
+  <div class="row">
+    <div class="panel">
+      <div class="label">Mode</div>
+      <div class="row">
+        <button class="btn sel" id="modeBot">Player vs Bot</button>
+        <button class="btn" id="modePvp">Player vs Player</button>
+        <button class="btn" id="modeBotBot">Bot vs Bot</button>
+        <button class="btn" id="mode2v2">2 v 2</button>
+      </div>
+    </div>
+    <div class="panel" id="diffPanel">
+      <div class="label">Bot difficulty</div>
+      <div class="row">
+        <button class="btn" id="diffEasy">😌 Easy</button>
+        <button class="btn sel" id="diffMid">😐 Mid</button>
+        <button class="btn" id="diffHard">😈 Hard</button>
+      </div>
+    </div>
+    <div class="panel" id="humansPanel" style="display:none">
+      <div class="label">Humans on team 1</div>
+      <div class="row">
+        <button class="btn" id="hum0">0 (all bots)</button>
+        <button class="btn sel" id="hum1">1 (you)</button>
+        <button class="btn" id="hum2">2 (co-op)</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="panel">
+      <div class="label" id="p1label">Player 1 colour</div>
+      <div class="row" id="p1colors"></div>
+    </div>
+    <div class="panel">
+      <div class="label" id="p2label">Bot colour</div>
+      <div class="row" id="p2colors"></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="panel">
+      <div class="label" id="p1wlabel">Player 1 weapon</div>
+      <div class="row" id="p1weapons"></div>
+    </div>
+    <div class="panel">
+      <div class="label" id="p2wlabel">Bot weapon</div>
+      <div class="row" id="p2weapons"></div>
+    </div>
+  </div>
+
+  <div class="row" id="weaponRow2" style="display:none">
+    <div class="panel">
+      <div class="label" id="p3wlabel">Team 2 weapon A</div>
+      <div class="row" id="p3weapons"></div>
+    </div>
+    <div class="panel">
+      <div class="label" id="p4wlabel">Team 2 weapon B</div>
+      <div class="row" id="p4weapons"></div>
+    </div>
+  </div>
+
+  <div class="keyhint" id="keyhint"></div>
+  <div class="row"><button class="btn" id="startBtn" style="border-color:#ffd84a;background:#2a2616;font-size:20px;padding:16px 40px;">⚔ TO THE FORGE</button></div>
+</div>
+
+<!-- WINNER -->
+<div class="overlay hidden" id="win">
+  <h1 id="winTitle">RED WINS</h1>
+  <p class="sub" id="winSub"></p>
+  <div class="row">
+    <button class="btn" id="rematchBtn" style="border-color:#7af;">↻ Rematch</button>
+    <button class="btn" id="menuBtn">≡ Menu</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  SWORD SMASH — a tiny platform-fighter with a forge minigame
+// ============================================================
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const W = cv.width, H = cv.height;
+
+// ---- Sword tiers: each one swings faster, hits harder, knocks a bit further ----
+const TIERS = [
+  { name:'Wood',    col:'#a9763f', edge:'#d8a86a', dmg:6,  kb:3.8, cd:0.50, len:46, reach:54 },
+  { name:'Stone',   col:'#8c8c98', edge:'#c4c4d0', dmg:8,  kb:4.2, cd:0.42, len:50, reach:58 },
+  { name:'Iron',    col:'#c9ccd6', edge:'#ffffff', dmg:11, kb:4.6, cd:0.35, len:54, reach:62 },
+  { name:'Gold',    col:'#e8c14a', edge:'#fff2b0', dmg:14, kb:5.0, cd:0.29, len:58, reach:66 },
+  { name:'Ruby',    col:'#e03a52', edge:'#ff9aae', dmg:18, kb:5.4, cd:0.23, len:62, reach:70 },
+  { name:'Diamond', col:'#54e0d8', edge:'#c8fff9', dmg:23, kb:5.9, cd:0.17, len:66, reach:75 },
+];
+
+const COLORS = [
+  { name:'Red',    body:'#e0444c', dark:'#9c2b30' },
+  { name:'Blue',   body:'#4a86e0', dark:'#2c5499' },
+  { name:'Green',  body:'#52c563', dark:'#2f7d3b' },
+  { name:'Yellow', body:'#e8c83a', dark:'#9c8520' },
+];
+
+// ---- Weapon types: multipliers applied on top of the forged material tier ----
+//  dmgM damage · cdM cooldown · reachM range · kbM knockback · lenM/widM blade shape
+const WEAPONS = [
+  { name:'Dagger', icon:'🗡️', blurb:'fast · low dmg', dmgM:0.62, cdM:0.42, reachM:0.66, kbM:0.82, lenM:0.55, widM:0.85, specCd:3,   spec:'throw a dagger' },
+  { name:'Sword',  icon:'⚔️', blurb:'balanced',       dmgM:1.0,  cdM:1.0,  reachM:1.0,  kbM:1.0,  lenM:1.0,  widM:1.0,  specCd:4.5, spec:'dash like a train' },
+  { name:'Axe',    icon:'🪓', blurb:'slow · heavy',   dmgM:1.5,  cdM:1.55, reachM:0.9,  kbM:1.28, lenM:0.86, widM:2.1,  specCd:5,   spec:'orbiting axes (1.5s)' },
+  { name:'Spear',  icon:'🔱', blurb:'long reach',     dmgM:0.68, cdM:1.35, reachM:1.85, kbM:0.9,  lenM:1.75, widM:0.55, specCd:6,   spec:'spinning crater' },
+  { name:'Mace',   icon:'🔨', blurb:'smash from above',dmgM:0.78, cdM:1.1,  reachM:0.85, kbM:1.15, lenM:0.78, widM:1.6,  specCd:5,   spec:'wind burst (launch up)' },
+  { name:'Bow',    icon:'🏹', blurb:'ranged · low dmg', dmgM:0.55, cdM:0.85, reachM:1,    kbM:0.4,  lenM:1,    widM:1,    ranged:true, specCd:5, spec:'bow blitz (5 arrows)' },
+  { name:'Shield', icon:'🛡️', blurb:'block · counter',  dmgM:1.15, cdM:1.25, reachM:1,    kbM:1.25, lenM:1,    widM:1,    block:true, specCd:5, spec:'bulwark (1s block)' },
+];
+
+// Effective per-swing stats = forged material tier × chosen weapon type.
+function eff(f) {
+  const t = TIERS[f.tier], w = WEAPONS[f.weapon];
+  return {
+    dmg: t.dmg * w.dmgM,
+    kb:  t.kb  * w.kbM,
+    cd:  t.cd  * w.cdM,
+    reach: t.reach * w.reachM,
+    len: t.len * w.lenM,
+    wid: w.widM,
+    col: t.col, edge: t.edge,
+  };
+}
+
+// ---- Stage geometry (a big world; the camera follows the action) ----
+const WORLD_W = 2000;
+const WORLD_H = 1100;
+const GROUND_Y = 760;
+const PLATFORMS = [
+  { x:400, y:760, w:1200, h:40 },               // main floor
+  { x:240, y:580, w:240, h:20, pass:true },     // low left
+  { x:1520, y:580, w:240, h:20, pass:true },    // low right
+  { x:600, y:470, w:220, h:20, pass:true },     // mid left
+  { x:1180, y:470, w:220, h:20, pass:true },    // mid right
+  { x:850, y:350, w:300, h:20, pass:true },     // top centre
+];
+const MAIN = PLATFORMS[0];
+const GRAV = 0.62;
+const BLAST = 260; // how far past the world edge before a KO
+
+// ============================================================
+//  Game state
+// ============================================================
+let mode = 'bot';
+let difficulty = 'mid';
+let humans = 1;            // human players on team 1 in 2v2 (0, 1 or 2)
+// Bot personality per difficulty.
+//  react: how often it re-decides (lower = sharper reflexes)
+//  aggr: chance it chases instead of spacing · atkChance: willingness to swing
+//  reachBonus: extra range it commits attacks from · forgeHit/forgeMiss: forge skill
+const DIFFS = {
+  easy: { react:[0.30,0.55], aggr:0.45, atkChance:0.55, reachBonus:-12, accel:0.62, forgeHit:0.22, forgeMiss:0.05, guard:0.55 },
+  mid:  { react:[0.12,0.32], aggr:0.70, atkChance:0.95, reachBonus:0,   accel:0.90, forgeHit:0.40, forgeMiss:0.012, guard:0.90 },
+  hard: { react:[0.05,0.15], aggr:0.95, atkChance:1.0,  reachBonus:16,  accel:1.06, forgeHit:0.72, forgeMiss:0.004, guard:1.0 },
+};
+let p1Color = 0, p2Color = 1;
+let p1Weapon = 1, p2Weapon = 1;   // default: Sword (team 1 in 2v2)
+let p3Weapon = 1, p4Weapon = 1;   // team 2 weapons (2v2 only)
+let fighters = [];
+let particles = [];
+let projectiles = [];      // thrown daggers etc.
+let state = 'menu';        // menu | forge | fight | win
+let forge = null;
+let raf = null, lastT = 0;
+let shake = 0;
+let announce = { text:'', t:0 };
+
+const keys = {};
+addEventListener('keydown', e => {
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','/',' '].includes(e.key)) e.preventDefault();
+  if (!keys[e.code]) onPress(e.code);
+  keys[e.code] = true;
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+
+// Per-player control maps
+const CONTROLS = [
+  { left:'KeyA', right:'KeyD', jump:'KeyW', down:'KeyS', attack:'KeyF', special:'KeyG', label:'P1' },
+  { left:'ArrowLeft', right:'ArrowRight', jump:'ArrowUp', down:'ArrowDown', attack:'Slash', special:'Period', label:'P2' },
+];
+
+// ============================================================
+//  Fighter
+// ============================================================
+function makeFighter(i, colorIdx, weaponIdx, isBot, team, slot, ctrlIndex) {
+  const c = COLORS[colorIdx];
+  const side = team === 0 ? -1 : 1;
+  return {
+    idx:i, color:c, isBot, team, slot,
+    ctrl: CONTROLS[ctrlIndex],
+    x: WORLD_W/2 + side*(200 + slot*120), y: 240 + slot*30, vx:0, vy:0,
+    w:34, h:48,
+    facing: -side,
+    dead:false,
+    onGround:false, jumps:2,
+    percent:0, stocks:3,
+    tier:0, weapon: weaponIdx,
+    atkT:0,        // attack active timer
+    atkCd:0,       // cooldown
+    hitStun:0,
+    invuln:0,
+    flash:0,
+    swing:0,       // animation phase 0..1
+    respawnT:0,
+    botT:0, botAct:{},
+    // secondary-attack state
+    specCd:0,                  // cooldown until special is ready again
+    dashT:0,                   // sword dash remaining
+    orbitT:0, orbitAng:0,      // axe orbit
+    spinT:0,  spinAng:0,       // spear spin
+    blitzN:0, blitzGap:0,      // bow blitz: arrows left to fire & gap timer
+    blockT:0, blockFlash:0,    // shield raised — blocks & counters
+    hitGrace:0,                // brief immunity to projectiles (anti arrow-stunlock)
+    specHits:null,             // set of fighters already hit this dash
+    specHitCd:{},              // per-victim re-hit cooldown for orbit/spin
+  };
+}
+
+// ============================================================
+//  Forge minigame
+// ============================================================
+function startForge() {
+  state = 'forge';
+  forge = {
+    t:0, phase:'play', countdown:0,
+    bars: fighters.map((f,i) => ({
+      pos: Math.random(), dir: 1, speed: 0.85,
+      gpos: 0.3 + Math.random()*0.4, gw: 0.26,
+      tries: 5, done:false, lastFlash:0, lockedFlash:0,
+    })),
+  };
+  fighters.forEach(f => f.tier = 0);
+}
+
+function forgePress(playerIdx) {
+  if (!forge || forge.phase !== 'play') return;
+  const b = forge.bars[playerIdx];
+  if (!b || b.done) return;
+  const f = fighters[playerIdx];
+  const lo = b.gpos - b.gw/2, hi = b.gpos + b.gw/2;
+  if (b.pos >= lo && b.pos <= hi) {
+    // success — climb a tier
+    if (f.tier < TIERS.length - 1) {
+      f.tier++;
+      spawnForgeSparks(playerIdx, true);
+    }
+    b.lockedFlash = 0.4;
+    // get harder
+    b.gw = Math.max(0.10, b.gw * 0.82);
+    b.speed += 0.18;
+    b.gpos = 0.18 + Math.random()*0.64;
+  } else {
+    b.lastFlash = 0.3;
+    spawnForgeSparks(playerIdx, false);
+  }
+  b.tries--;
+  if (b.tries <= 0 || f.tier >= TIERS.length-1) b.done = true;
+}
+
+// Forge bar layout adapts to how many fighters are forging (2 or 4)
+function forgeLayout() {
+  const n = fighters.length;
+  return n > 2 ? { top:150, gap:96, bh:26 } : { top:200, gap:150, bh:38 };
+}
+function forgeBarY(i) { const L = forgeLayout(); return L.top + i*L.gap; }
+
+// Forge sparks live in screen space (the forge UI is a screen overlay)
+let forgeFx = [];
+function spawnForgeSparks(i, good) {
+  const cx = W/2, cy = forgeBarY(i) + forgeLayout().bh/2;
+  for (let k=0;k<(good?22:8);k++){
+    forgeFx.push({
+      x:cx, y:cy, vx:(Math.random()-0.5)*8, vy:(Math.random()-0.5)*8-2,
+      life:0.5, col: good ? TIERS[fighters[i].tier].edge : '#888', r:2+Math.random()*2,
+    });
+  }
+}
+
+function updateForge(dt) {
+  forge.t += dt;
+  for (let i=forgeFx.length-1;i>=0;i--){
+    const p = forgeFx[i];
+    p.x += p.vx; p.y += p.vy; p.vy += 0.25; p.life -= dt;
+    if (p.life <= 0) forgeFx.splice(i,1);
+  }
+  if (forge.phase === 'play') {
+    for (let i=0;i<forge.bars.length;i++){
+      const b = forge.bars[i];
+      if (b.done) continue;
+      b.pos += b.dir * b.speed * dt;
+      if (b.pos > 1) { b.pos = 1; b.dir = -1; }
+      if (b.pos < 0) { b.pos = 0; b.dir = 1; }
+      b.lastFlash = Math.max(0, b.lastFlash - dt);
+      b.lockedFlash = Math.max(0, b.lockedFlash - dt);
+
+      // Bot forges itself
+      const f = fighters[i];
+      if (f.isBot) {
+        const fd = f.diff || DIFFS.mid;
+        const lo = b.gpos - b.gw/2, hi = b.gpos + b.gw/2;
+        // press when near centre (skill varies); plus occasional misfire
+        if (b.pos >= lo+0.02 && b.pos <= hi-0.02 && Math.random() < fd.forgeHit) {
+          forgePress(i);
+        } else if (Math.random() < fd.forgeMiss) {
+          forgePress(i); // wasted swing
+        }
+      }
+    }
+    if (forge.bars.every(b => b.done)) { forge.phase = 'countdown'; forge.countdown = 2.2; }
+  } else if (forge.phase === 'countdown') {
+    forge.countdown -= dt;
+    if (forge.countdown <= 0) beginFight();
+  }
+}
+
+// ============================================================
+//  Fight
+// ============================================================
+function beginFight() {
+  state = 'fight';
+  announce = { text:'FIGHT!', t:1.0 };
+  // snap cameras straight onto their targets so the view doesn't slide in
+  if (mode === 'pvp') {
+    followCam(cams[0], fighters[0], W/2, H, SPLIT_ZOOM, 999);
+    followCam(cams[1], fighters[1], W/2, H, SPLIT_ZOOM, 999);
+  } else {
+    followCam(cams[0], fighters[0], W, H, SINGLE_ZOOM, 999);
+  }
+}
+
+function respawn(f) {
+  const side = f.team === 0 ? -1 : 1;
+  f.x = WORLD_W/2 + side*(70 + f.slot*70); f.y = 80;
+  f.vx = 0; f.vy = 0; f.percent = 0; f.hitStun = 0;
+  f.invuln = 1.6; f.atkT = 0; f.atkCd = 0;
+}
+
+function ko(f, byVx) {
+  f.stocks--;
+  shake = 18;
+  announce = { text: f.color.name.toUpperCase()+' KO!', t:0.9 };
+  for (let k=0;k<40;k++) particles.push({
+    x:f.x, y:f.y, vx:(Math.random()-0.5)*16, vy:(Math.random()-0.5)*16,
+    life:0.7, col:f.color.body, r:2+Math.random()*3 });
+  if (f.stocks <= 0) {
+    f.dead = true;                          // eliminated — out for the rest of the match
+    const teamAlive = fighters.some(o => o.team === f.team && !o.dead);
+    if (!teamAlive) endMatch();
+  } else {
+    respawn(f);
+  }
+}
+
+function endMatch() {
+  // the winning team is whichever still has a living member
+  const aliveTeam = fighters.some(f => f.team===0 && !f.dead) ? 0 : 1;
+  const members = fighters.filter(f => f.team === aliveTeam);
+  const lead = members[0];
+  state = 'win';
+  const isTeam = members.length > 1;
+  const title = isTeam ? 'TEAM ' + lead.color.name + ' WINS'
+                       : lead.color.name + ' WINS';
+  document.getElementById('winTitle').textContent = title.toUpperCase();
+  document.getElementById('winTitle').style.color = lead.color.body;
+  document.getElementById('winSub').textContent = isTeam
+    ? 'Team ' + lead.color.name + ' takes the 2v2.'
+    : lead.color.name + ' forged a ' + TIERS[lead.tier].name + ' ' + WEAPONS[lead.weapon].name + ' and survived.';
+  document.getElementById('win').classList.remove('hidden');
+}
+
+// Attack input
+function onPress(code) {
+  if (state === 'forge' && forge.phase === 'play') {
+    fighters.forEach((f,i) => { if (!f.isBot && code === f.ctrl.attack) forgePress(i); });
+  }
+  if (state === 'fight') {
+    fighters.forEach(f => {
+      if (f.isBot) return;
+      if (code === f.ctrl.attack) tryAttack(f);
+      if (code === f.ctrl.special) trySpecial(f);
+    });
+  }
+}
+
+// Jump needs edge detection — track previous state
+const prevKeys = {};
+function jumpPressed(ctrl) {
+  const now = keys[ctrl.jump];
+  const was = prevKeys[ctrl.jump];
+  return now && !was;
+}
+
+function tryAttack(f) {
+  if (f.atkCd > 0 || f.hitStun > 0) return;
+  const w = WEAPONS[f.weapon];
+  if (w.block) {
+    f.blockT = 0.5;                       // 0.5s of protection
+    f.atkCd = Math.max(eff(f).cd, 0.7);   // slow, floored so it can't perma-block
+    f.swing = 1;
+  } else if (w.ranged) {
+    f.atkCd = eff(f).cd;
+    fireArrow(f, 0);   // bow: launch an arrow, no melee hitbox
+  } else {
+    f.atkCd = eff(f).cd;
+    f.atkT = 0.12;     // active window
+    f.swing = 1;
+    f.hasHit = false;
+  }
+}
+
+// Fire one arrow in the facing direction (vyBias spreads blitz shots into a fan)
+function fireArrow(f, vyBias) {
+  const e = eff(f);
+  projectiles.push({
+    owner:f, type:'arrow',
+    x:f.x + f.facing*22, y:f.y - 8,
+    vx:f.facing*17, vy:(vyBias||0) - 1.5,
+    spin:0, dmg:e.dmg, kb:0.4, stun:0.1, life:2.4, col:e.edge,
+  });
+  f.swing = 1;          // bow-draw recoil animation
+}
+
+// ---- Secondary attack: one unique special per weapon ----
+function trySpecial(f) {
+  if (f.specCd > 0 || f.hitStun > 0) return;
+  const w = WEAPONS[f.weapon];
+  f.specCd = w.specCd;
+  if (w.name === 'Sword') {
+    f.dashT = 0.42;             // plow forward like a train
+    f.specHits = new Set();
+    f.vy = 0;
+  } else if (w.name === 'Axe') {
+    f.orbitT = 1.5;             // two axes circle for 1.5s
+    f.orbitAng = 0; f.specHitCd = {};
+  } else if (w.name === 'Dagger') {
+    const e = eff(f);           // hurl a spinning dagger forward
+    projectiles.push({ owner:f, type:'dagger', x:f.x + f.facing*22, y:f.y-6, vx:f.facing*12, vy:0,
+      spin:0, dmg:e.dmg*1.4, kb:0.9, stun:0.16, life:1.8, col:e.edge });
+  } else if (w.name === 'Bow') {
+    f.blitzN = 5; f.blitzGap = 0;   // bow blitz: rapid-fire 5 arrows
+  } else if (w.name === 'Spear') {
+    f.spinT = 1.0;             // giant spinning crater
+    f.spinAng = 0; f.specHitCd = {};
+  } else if (w.name === 'Mace') {
+    // Wind Burst: rocket upward so you can drop back down for a huge smash
+    f.vy = -18; f.onGround = false; f.jumps = 1;
+    const e = eff(f);
+    for (const o of fighters) {            // small shove to nearby enemies
+      if (o === f || o.dead || o.team === f.team) continue;
+      const dx = o.x - f.x, dy = o.y - f.y;
+      if (Math.hypot(dx, dy) < 95) specHit(f, o, e.dmg*0.5, Math.sign(dx)||f.facing, 0.8, 0.14);
+    }
+    for (let k=0;k<26;k++) particles.push({ x:f.x, y:f.y+22,
+      vx:(Math.random()-0.5)*7, vy:-2-Math.random()*7, life:0.55, col:'#bfe8ff', r:2+Math.random()*2.5 });
+  } else if (w.name === 'Shield') {
+    f.blockT = 1.0;            // Bulwark: a full second of protection + counters
+  }
+}
+
+// Shield raised: negate an incoming hit and counter the attacker (130% of shield dmg)
+function blockAndCounter(def, att) {
+  def.blockFlash = 0.18;
+  shake = Math.min(16, 9);
+  // block sparks across the shield front
+  const sx = def.x + def.facing*22, sy = def.y - 4;
+  for (let k=0;k<16;k++) particles.push({ x:sx, y:sy,
+    vx:def.facing*(2+Math.random()*4), vy:(Math.random()-0.5)*9,
+    life:0.4, col:'#cfe9ff', r:1.5+Math.random()*2.4 });
+  // counter only if the attacker is close (melee / smash), not a distant archer
+  if (att && !att.dead && Math.hypot(att.x-def.x, att.y-def.y) < 165) {
+    const cdmg = eff(def).dmg * 1.6;
+    att.percent += cdmg;
+    const dir = Math.sign(att.x - def.x) || def.facing;
+    const mag = eff(def).kb * (1 + att.percent * 0.012) * 1.4;
+    att.vx = dir * mag;
+    att.vy = -mag * 0.6 - 1.4;
+    att.hitStun = 0.24 + att.percent * 0.0016;
+    att.flash = 0.18;
+    att.dashT = 0;            // interrupt a charging dash/bash
+    announce = { text: def.color.name.toUpperCase()+' COUNTER!', t:0.65, color: def.color.body };
+    for (let k=0;k<16;k++) particles.push({ x:att.x, y:att.y-6,
+      vx:(Math.random()-0.5)*9 + dir*2, vy:(Math.random()-0.5)*9,
+      life:0.45, col:eff(def).edge, r:1.6+Math.random()*2.4 });
+  }
+}
+
+// Apply a special hit with custom direction / knockback scale
+function specHit(att, def, dmg, dirX, kbScale, stun) {
+  if (def.blockT > 0) { blockAndCounter(def, att); return; }   // shield negates it
+  def.percent += dmg;
+  const mag = eff(att).kb * (1 + def.percent * 0.012) * kbScale;
+  def.vx = dirX * mag;
+  def.vy = -mag * 0.6 - 1.2;
+  def.hitStun = stun + def.percent * 0.0016;
+  def.flash = 0.18;
+  shake = Math.min(20, 6 + mag);
+  const col = eff(att).edge;
+  for (let k=0;k<14;k++) particles.push({ x:def.x, y:def.y-6,
+    vx:(Math.random()-0.5)*9 + dirX*2, vy:(Math.random()-0.5)*9,
+    life:0.42, col, r:1.6+Math.random()*2.4 });
+}
+
+// Resolve all active special hitboxes + projectiles (called each fight frame)
+function resolveSpecials(dt) {
+  for (const a of fighters) {
+    // sword dash — forward cone, each foe hit once per dash
+    if (a.dashT > 0) {
+      const hx = a.x + a.facing * (a.w/2 + 34);
+      for (const d of fighters) {
+        if (d === a || d.dead || d.team === a.team || d.invuln > 0 || a.specHits.has(d)) continue;
+        if (Math.abs(d.x - hx) < 56 && Math.abs(d.y - a.y) < 50) {
+          specHit(a, d, eff(a).dmg*1.1, a.facing, 1.15, 0.2);
+          a.specHits.add(d);
+        }
+      }
+    }
+    // axe orbit — ring around the fighter, re-hits on a short cooldown
+    if (a.orbitT > 0) {
+      for (const d of fighters) {
+        if (d === a || d.dead || d.team === a.team || (a.specHitCd[d.idx]||0) > 0) continue;
+        if (Math.hypot(d.x-a.x, d.y-a.y) < 70) {
+          const dir = Math.sign(d.x - a.x) || a.facing;
+          specHit(a, d, eff(a).dmg*0.7, dir, 0.95, 0.14);
+          a.specHitCd[d.idx] = 0.32;
+        }
+      }
+    }
+    // spear spin — giant radial crater
+    if (a.spinT > 0) {
+      for (const d of fighters) {
+        if (d === a || d.dead || d.team === a.team || (a.specHitCd[d.idx]||0) > 0) continue;
+        const dx = d.x-a.x, dy = d.y-a.y, dist = Math.hypot(dx,dy);
+        if (dist < 100) {
+          const dir = Math.sign(dx) || a.facing;
+          specHit(a, d, eff(a).dmg*0.85, dir, 1.35, 0.2);
+          a.specHitCd[d.idx] = 0.3;
+        }
+      }
+    }
+  }
+  // projectiles
+  for (let i=projectiles.length-1;i>=0;i--){
+    const p = projectiles[i];
+    p.x += p.vx; p.y += p.vy; p.vy += 0.05; p.life -= dt;
+    if (p.type !== 'arrow') p.spin += 0.6;   // daggers tumble; arrows fly point-first
+    let gone = p.life <= 0 || p.x < -60 || p.x > WORLD_W+60 || p.y > WORLD_H+60;
+    for (const d of fighters) {
+      if (d === p.owner || d.dead || d.team === p.owner.team || d.invuln > 0 || d.hitGrace > 0) continue;
+      if (Math.abs(d.x-p.x) < (d.w/2+10) && Math.abs(d.y-p.y) < (d.h/2+12)) {
+        specHit(p.owner, d, p.dmg, Math.sign(p.vx)||1, p.kb ?? 0.9, p.stun ?? 0.16);
+        // arrows leave a short grace so a stream of them can't perma-stun
+        d.hitGrace = p.type === 'arrow' ? 0.3 : 0.12;
+        gone = true; break;
+      }
+    }
+    if (gone) projectiles.splice(i,1);
+  }
+}
+
+function applyHit(att, def) {
+  if (def.blockT > 0) { blockAndCounter(def, att); return; }   // shield negates & counters
+  const e = eff(att);
+  // CRIT: swinging while airborne deals 150% damage and a bit more knockback
+  const crit = !att.onGround;
+  let dmg = crit ? e.dmg * 1.5 : e.dmg;
+
+  // MACE: the faster you're falling, the harder the smash (Minecraft-style)
+  const isMace = WEAPONS[att.weapon].name === 'Mace';
+  let fallMul = 1;
+  if (isMace && att.vy > 3) {
+    fallMul = 1 + Math.min(att.vy, 17) * 0.17;   // up to ~3.9x on a full-speed drop
+    dmg *= fallMul;
+  }
+  const bigSmash = isMace && fallMul > 1.9;
+
+  def.percent += dmg;
+  // knockback scales gently with victim's damage %
+  let mag = e.kb * (1 + def.percent * 0.012);
+  if (crit) mag *= 1.25;
+  if (fallMul > 1) mag *= 0.85 + fallMul * 0.28;   // heavy smashes launch harder
+  def.vx = att.facing * mag;
+  def.vy = -mag * 0.72 - 1.2;
+  def.hitStun = 0.18 + def.percent * 0.0016;
+  def.flash = 0.18;
+  shake = Math.min(bigSmash ? 30 : (crit ? 22 : 16), (bigSmash ? 12 : crit ? 8 : 5) + mag);
+  // banner: SMASH for a heavy mace drop, otherwise CRIT for an air hit
+  if (bigSmash) announce = { text: att.color.name.toUpperCase()+' SMASH!', t:0.7, color: att.color.body };
+  else if (crit) announce = { text: att.color.name.toUpperCase()+' CRIT!', t:0.6, color: att.color.body };
+  // hit sparks (more, gold-tinted on a crit)
+  const hx = att.x + att.facing * 40, hy = att.y - 6;
+  const n = crit ? 26 : 14, spd = crit ? 13 : 9;
+  for (let k=0;k<n;k++) particles.push({
+    x:hx, y:hy, vx:(Math.random()-0.5)*spd + att.facing*3, vy:(Math.random()-0.5)*spd,
+    life:crit?0.55:0.4, col: crit ? (Math.random()<0.5?'#ffd84a':e.edge) : e.edge, r:(crit?2:1.5)+Math.random()*2.5 });
+  // ground-shockwave ring on a big smash
+  if (bigSmash) {
+    for (let k=0;k<22;k++){
+      const a = (k/22)*Math.PI*2;
+      particles.push({ x:def.x, y:def.y+def.h/2, vx:Math.cos(a)*9, vy:-Math.abs(Math.sin(a))*5-1,
+        life:0.5, col:'#dfe7f0', r:2+Math.random()*2.5 });
+    }
+  }
+}
+
+function botThink(f, dt) {
+  // pick the nearest living enemy
+  let foe = null, best = Infinity;
+  for (const o of fighters) {
+    if (o.team === f.team || o.dead) continue;
+    const d2 = (o.x-f.x)**2 + (o.y-f.y)**2;
+    if (d2 < best) { best = d2; foe = o; }
+  }
+  if (!foe) return;
+  const d = f.diff || DIFFS.mid;
+  f.botT -= dt;
+  const dx = foe.x - f.x;
+  const adist = Math.abs(dx);
+  const act = f.botAct;
+  // refresh decisions periodically (reaction speed varies by difficulty)
+  if (f.botT <= 0) {
+    f.botT = d.react[0] + Math.random()*(d.react[1]-d.react[0]);
+    act.move = 0;
+    const lftEdge = PLATFORMS[0].x + 10, rgtEdge = PLATFORMS[0].x + PLATFORMS[0].w - 10;
+    // recover toward stage if off the platform (weaker bots react late/less reliably)
+    if (f.x < lftEdge && Math.random() < d.guard) act.move = 1;
+    else if (f.x > rgtEdge && Math.random() < d.guard) act.move = -1;
+    else {
+      // play more cautiously when hurt; aggression set by difficulty
+      const aggressive = f.percent < 90 ? Math.random() < d.aggr : Math.random() < d.aggr*0.5;
+      if (aggressive) act.move = dx > 0 ? 1 : -1;
+      else act.move = dx > 0 ? -1 : 1;
+    }
+    act.jump = (foe.y < f.y - 40 && Math.random() < d.aggr*0.6) || (f.x < PLATFORMS[0].x+30 && f.vy>0) || (f.x > PLATFORMS[0].x+PLATFORMS[0].w-30 && f.vy>0);
+    const ranged = WEAPONS[f.weapon].ranged;
+    const atkRange = ranged ? 540 : eff(f).reach + 26 + d.reachBonus;
+    act.wantAttack = adist < atkRange && Math.abs(foe.y - f.y) < (ranged ? 90 : 48) && Math.random() < d.atkChance;
+    // fire the special when it's up and the foe is roughly in play
+    act.wantSpecial = f.specCd <= 0 && adist < 360 && Math.random() < 0.4 + d.aggr*0.3;
+  }
+  // execute
+  f.vx += act.move * d.accel;
+  if (act.move !== 0) f.facing = act.move;
+  if (act.jump && (f.onGround || f.jumps>0) && f._botJumpCd<=0) {
+    doJump(f); f._botJumpCd = 0.4; act.jump=false;
+  }
+  f._botJumpCd = (f._botJumpCd||0) - dt;
+  if (act.wantSpecial && f.specCd <= 0) {
+    f.facing = dx >= 0 ? 1 : -1;
+    trySpecial(f);
+    act.wantSpecial = false;
+  }
+  const execRange = WEAPONS[f.weapon].ranged ? 540 : eff(f).reach + 24 + d.reachBonus;
+  if (act.wantAttack && adist < execRange) {
+    // face the foe before swinging / shooting
+    f.facing = dx >= 0 ? 1 : -1;
+    tryAttack(f);
+    act.wantAttack = false;
+  }
+}
+
+function doJump(f) {
+  if (f.onGround) { f.vy = -11.5; f.onGround=false; f.jumps=1; }
+  else if (f.jumps > 0) { f.vy = -10.5; f.jumps--; }
+}
+
+function updateFighter(f, dt) {
+  if (f.isBot && state==='fight') botThink(f, dt);
+
+  const dashing = f.dashT > 0;
+
+  // input (humans) — locked out while dashing
+  const c = f.ctrl;
+  if (!f.isBot && !dashing) {
+    let mv = 0;
+    if (keys[c.left]) mv -= 1;
+    if (keys[c.right]) mv += 1;
+    if (f.hitStun <= 0) {
+      f.vx += mv * (f.onGround ? 1.1 : 0.7);
+      if (mv !== 0) f.facing = mv;
+    }
+    if (jumpPressed(c) && f.hitStun<=0) doJump(f);
+    if (keys[c.down] && !f.onGround) f.vy += 0.5; // fast fall
+  }
+
+  if (dashing) {
+    // sword "train" — plow forward at speed, ignore gravity (super-armoured)
+    f.vx = f.facing * 13;
+    f.vy = 0;
+    f.hitStun = 0;
+  } else {
+    // friction / speed cap
+    const maxSpd = 5.2;
+    if (f.hitStun <= 0) {
+      f.vx *= f.onGround ? 0.78 : 0.92;
+      if (f.vx > maxSpd) f.vx = maxSpd;
+      if (f.vx < -maxSpd) f.vx = -maxSpd;
+    } else {
+      f.vx *= 0.985;
+    }
+    f.vy += GRAV;
+    if (f.vy > 16) f.vy = 16;
+  }
+
+  f.x += f.vx;
+  f.y += f.vy;
+
+  // platform collisions
+  f.onGround = false;
+  const feet = f.y + f.h/2;
+  for (const p of PLATFORMS) {
+    const withinX = f.x > p.x - f.w/2 && f.x < p.x + p.w + f.w/2;
+    if (!withinX) continue;
+    const prevFeet = feet - f.vy;
+    if (f.vy >= 0 && prevFeet <= p.y + 2 && feet >= p.y && feet <= p.y + p.h + 16) {
+      // landing
+      if (p.pass && !f.isBot && f.ctrl && keys[f.ctrl.down]) continue; // drop through
+      f.y = p.y - f.h/2;
+      f.vy = 0;
+      f.onGround = true;
+      f.jumps = 2;
+    }
+  }
+
+  // timers
+  f.atkCd = Math.max(0, f.atkCd - dt);
+  f.atkT = Math.max(0, f.atkT - dt);
+  f.hitStun = Math.max(0, f.hitStun - dt);
+  f.invuln = Math.max(0, f.invuln - dt);
+  f.flash = Math.max(0, f.flash - dt);
+  if (f.swing > 0) f.swing = Math.max(0, f.swing - dt*7);
+
+  // special timers
+  f.specCd = Math.max(0, f.specCd - dt);
+  if (f.dashT > 0) f.dashT = Math.max(0, f.dashT - dt);
+  if (f.orbitT > 0) { f.orbitT = Math.max(0, f.orbitT - dt); f.orbitAng += dt*13; }
+  if (f.spinT > 0)  { f.spinT  = Math.max(0, f.spinT  - dt); f.spinAng  += dt*22; }
+  if (f.blitzN > 0) {
+    f.blitzGap -= dt;
+    if (f.blitzGap <= 0) {
+      fireArrow(f, (f.blitzN - 3) * 1.4);   // fan the five shots out
+      f.blitzN--;
+      f.blitzGap = 0.09;
+    }
+  }
+  if (f.hitGrace > 0) f.hitGrace = Math.max(0, f.hitGrace - dt);
+  if (f.blockT > 0) f.blockT = Math.max(0, f.blockT - dt);
+  if (f.blockFlash > 0) f.blockFlash = Math.max(0, f.blockFlash - dt);
+  for (const k in f.specHitCd) if (f.specHitCd[k] > 0) f.specHitCd[k] -= dt;
+
+  // blast zone check (past the edges of the big world)
+  if (f.x < -BLAST || f.x > WORLD_W+BLAST || f.y > WORLD_H+BLAST || f.y < -BLAST-160) {
+    ko(f, f.vx);
+  }
+}
+
+function resolveAttacks() {
+  for (const a of fighters) {
+    if (a.dead || a.atkT <= 0 || a.hasHit) continue;
+    const reach = eff(a).reach;
+    // weapon hitbox in front
+    const hx = a.x + a.facing * (a.w/2 + reach/2);
+    const hy = a.y - 4;
+    const hw = reach, hh = 54;
+    for (const d of fighters) {
+      if (d === a || d.dead || d.team === a.team || d.invuln > 0) continue;
+      if (Math.abs(d.x - hx) < (hw/2 + d.w/2) && Math.abs(d.y - hy) < (hh/2 + d.h/2)) {
+        applyHit(a, d);
+        a.hasHit = true;
+        break;
+      }
+    }
+  }
+}
+
+// ============================================================
+//  Particles
+// ============================================================
+function updateParticles(dt) {
+  for (let i=particles.length-1;i>=0;i--){
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy; p.vy += 0.25;
+    p.life -= dt;
+    if (p.life <= 0) particles.splice(i,1);
+  }
+}
+
+// ============================================================
+//  Rendering
+// ============================================================
+// ---- Cameras: one per viewport, each follows a fighter through the big world ----
+const SINGLE_ZOOM = 0.82;
+const SPLIT_ZOOM = 0.92;
+const cams = [
+  { x: WORLD_W/2, y: GROUND_Y-180, zoom: SINGLE_ZOOM },
+  { x: WORLD_W/2, y: GROUND_Y-180, zoom: SPLIT_ZOOM },
+];
+
+function clampCam(t, half, worldSize) {
+  if (half*2 >= worldSize) return worldSize/2;
+  return Math.max(half, Math.min(worldSize - half, t));
+}
+function followCam(cam, f, vw, vh, zoom, dt) {
+  cam.zoom = zoom;
+  const halfW = vw/(2*zoom), halfH = vh/(2*zoom);
+  // aim slightly ahead of the fighter so you can see where you're going
+  let tx = f.x + f.vx*6;
+  let ty = (f.y - 40) + f.vy*3;
+  tx = clampCam(tx, halfW, WORLD_W);
+  ty = clampCam(ty, halfH, WORLD_H);
+  const k = Math.min(1, dt*9);
+  cam.x += (tx - cam.x) * k;
+  cam.y += (ty - cam.y) * k;
+}
+function updateCameras(dt) {
+  if (mode === 'pvp') {
+    followCam(cams[0], fighters[0], W/2, H, SPLIT_ZOOM, dt);
+    followCam(cams[1], fighters[1], W/2, H, SPLIT_ZOOM, dt);
+  } else if (mode === 'botbot' || mode === '2v2') {
+    // frame the whole arena so you can watch everyone
+    cams[0].zoom = Math.min(W/WORLD_W, H/WORLD_H) * 0.98;
+    cams[0].x = WORLD_W/2;
+    cams[0].y = WORLD_H/2;
+  } else {
+    followCam(cams[0], fighters[0], W, H, SINGLE_ZOOM, dt);
+  }
+}
+
+function draw() {
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,W,H);
+
+  if (state === 'fight' || state === 'win') {
+    if (mode === 'pvp') {
+      renderView(cams[0], 0, 0, W/2, H);
+      renderView(cams[1], W/2, 0, W/2, H);
+      // split-screen divider
+      ctx.fillStyle = '#06080f'; ctx.fillRect(W/2-3, 0, 6, H);
+      ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.fillRect(W/2-1, 0, 2, H);
+    } else {
+      renderView(cams[0], 0, 0, W, H);
+    }
+    drawHUD();
+  } else {
+    // menu / forge: show the arena as a backdrop
+    renderView(cams[0], 0, 0, W, H);
+  }
+
+  if (state === 'forge') drawForge();
+  if (announce.t > 0) drawAnnounce();
+
+  if (shake > 0) { shake *= 0.85; if (shake < 0.4) shake = 0; }
+}
+
+// Render the world through one camera into a viewport rectangle
+function renderView(cam, vx, vy, vw, vh) {
+  ctx.save();
+  ctx.beginPath(); ctx.rect(vx, vy, vw, vh); ctx.clip();
+  drawSky(vx, vy, vw, vh);
+
+  ctx.translate(vx + vw/2, vy + vh/2);
+  ctx.scale(cam.zoom, cam.zoom);
+  const sh = shake;
+  ctx.translate(-cam.x + (Math.random()-0.5)*sh, -cam.y + (Math.random()-0.5)*sh);
+
+  drawWorld();
+  ctx.restore();
+}
+
+function drawSky(vx, vy, vw, vh) {
+  const g = ctx.createLinearGradient(0, vy, 0, vy+vh);
+  g.addColorStop(0, '#1a2138');
+  g.addColorStop(0.6, '#0e1322');
+  g.addColorStop(1, '#0a0d18');
+  ctx.fillStyle = g; ctx.fillRect(vx, vy, vw, vh);
+}
+
+function drawWorld() {
+  // distant arena bands across the whole world
+  ctx.fillStyle = 'rgba(120,150,255,0.04)';
+  for (let i=0;i<12;i++) ctx.fillRect(-200, 80+i*80, WORLD_W+400, 2);
+
+  // soft glow over the stage centre
+  const g = ctx.createRadialGradient(WORLD_W/2, GROUND_Y-120, 120, WORLD_W/2, GROUND_Y-120, 900);
+  g.addColorStop(0,'rgba(140,170,255,0.08)');
+  g.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.fillRect(-200, -200, WORLD_W+400, WORLD_H+400);
+
+  drawBlastEdges();
+  for (const p of PLATFORMS) drawPlatform(p);
+  const live = fighters.filter(f => !f.dead);
+  for (const f of live) drawSpecialUnder(f);   // dash trails / craters (behind)
+  for (const f of live) drawFighter(f);
+  for (const f of live) drawSpecialOver(f);     // orbiting axes / spinning spear (front)
+  drawProjectiles();
+
+  for (const p of particles) {
+    ctx.globalAlpha = Math.max(0, Math.min(1, p.life*2));
+    ctx.fillStyle = p.col;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// Dashed danger lines marking the blast zones
+function drawBlastEdges() {
+  ctx.strokeStyle = 'rgba(255,80,90,0.22)';
+  ctx.lineWidth = 4;
+  ctx.setLineDash([16, 16]);
+  ctx.beginPath();
+  ctx.moveTo(0, -200); ctx.lineTo(0, WORLD_H+200);
+  ctx.moveTo(WORLD_W, -200); ctx.lineTo(WORLD_W, WORLD_H+200);
+  ctx.moveTo(-200, WORLD_H); ctx.lineTo(WORLD_W+200, WORLD_H);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawPlatform(p) {
+  const grad = ctx.createLinearGradient(0, p.y, 0, p.y+p.h);
+  if (p.pass) { grad.addColorStop(0,'#3b4a6b'); grad.addColorStop(1,'#26314a'); }
+  else { grad.addColorStop(0,'#4a5a44'); grad.addColorStop(1,'#2c3a28'); }
+  ctx.fillStyle = grad;
+  roundRect(p.x, p.y, p.w, p.h, 6); ctx.fill();
+  ctx.fillStyle = p.pass ? '#5e72a0' : '#6f8a5e';
+  roundRect(p.x, p.y, p.w, 4, 3); ctx.fill();
+}
+
+function drawFighter(f) {
+  const blink = f.invuln > 0 && Math.floor(f.invuln*16)%2===0;
+  if (blink) ctx.globalAlpha = 0.35;
+
+  const x = f.x, y = f.y;
+  // shadow — cast onto the nearest platform below the fighter
+  const feet = f.y + f.h/2;
+  let sy = WORLD_H + 100;
+  for (const p of PLATFORMS) {
+    if (f.x > p.x && f.x < p.x + p.w && p.y >= feet - 4 && p.y < sy) sy = p.y;
+  }
+  if (sy < WORLD_H + 100) {
+    const near = 1 - Math.min(1, (sy - feet)/240);
+    ctx.fillStyle = `rgba(0,0,0,${0.12 + 0.2*near})`;
+    ctx.beginPath(); ctx.ellipse(x, sy-2, 16+6*near, 5, 0, 0, 7); ctx.fill();
+  }
+
+  // body
+  const bodyCol = f.flash>0 ? '#ffffff' : f.color.body;
+  ctx.fillStyle = bodyCol;
+  roundRect(x - f.w/2, y - f.h/2, f.w, f.h, 9); ctx.fill();
+  ctx.fillStyle = f.flash>0 ? '#ddd' : f.color.dark;
+  roundRect(x - f.w/2, y + f.h/2 - 14, f.w, 14, 9); ctx.fill();
+
+  // eyes (face direction)
+  ctx.fillStyle = '#0c0c14';
+  const ex = x + f.facing*6;
+  ctx.beginPath(); ctx.arc(ex-4*f.facing, y-10, 3, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(ex+4*f.facing, y-10, 3, 0, 7); ctx.fill();
+
+  // sword
+  drawSword(f);
+
+  ctx.globalAlpha = 1;
+}
+
+function drawSword(f) {
+  const e = eff(f);
+  const wtype = WEAPONS[f.weapon].name;
+  ctx.save();
+  ctx.translate(f.x, f.y - 4);
+  ctx.scale(f.facing, 1);
+  // bow is held, not swung — draw it and bail before the melee rotation
+  if (wtype === 'Bow') { drawBow(f, e); ctx.restore(); return; }
+  if (wtype === 'Shield') { drawShield(f, e); ctx.restore(); return; }
+  // swing arc: rest at ~ -20deg, swings down to +60deg
+  const base = -0.35;
+  const rot = base + (f.swing) * 1.4;
+  ctx.rotate(rot);
+  ctx.translate(f.w/2 - 2, 0);
+
+  // hilt
+  ctx.fillStyle = '#3a2a1a';
+  roundRect(-4, -3, 14, 6, 2); ctx.fill();
+  ctx.fillStyle = '#caa64a';
+  roundRect(8, -7, 4, 14, 1); ctx.fill();  // guard
+
+  const len = e.len;
+  const hw = 4 * e.wid;  // blade half-width
+  const grad = ctx.createLinearGradient(12, 0, 12+len, 0);
+  grad.addColorStop(0, e.col);
+  grad.addColorStop(0.5, e.edge);
+  grad.addColorStop(1, e.col);
+  ctx.fillStyle = grad;
+
+  if (wtype === 'Axe') {
+    // wooden haft running the full length
+    ctx.fillStyle = '#6b4423';
+    roundRect(8, -3, len+4, 6, 3); ctx.fill();
+    ctx.fillStyle = '#4a2f17';
+    roundRect(8, -3, 6, 6, 2); ctx.fill();            // grip butt
+    const hx = 12 + len;                              // head mount point (near tip)
+    // single-bit axe head: flat top, big curved cutting edge out front, beard below
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(hx-3, -8);                              // top, at the haft
+    ctx.lineTo(hx+16, -15);                            // flat-ish top out to the top corner
+    ctx.quadraticCurveTo(hx+25, 3, hx+6, 22);         // convex cutting edge sweeping down
+    ctx.quadraticCurveTo(hx-7, 15, hx-4, 7);          // beard curving back under to the haft
+    ctx.closePath(); ctx.fill();
+    // metal eye/poll wrapping the haft (the back of the head)
+    ctx.fillStyle = e.col;
+    roundRect(hx-9, -9, 13, 18, 3); ctx.fill();
+    // bright cutting edge along the front arc
+    ctx.strokeStyle = e.edge; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(hx+16, -15);
+    ctx.quadraticCurveTo(hx+25, 3, hx+6, 22);
+    ctx.stroke();
+  } else if (wtype === 'Spear') {
+    // long thin shaft + diamond spear tip
+    ctx.fillStyle = '#5a3a1f';
+    roundRect(10, -1.6, len-6, 3.2, 1.5); ctx.fill();
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(12+len-14, -hw*1.6);
+    ctx.lineTo(12+len, 0);
+    ctx.lineTo(12+len-14, hw*1.6);
+    ctx.lineTo(12+len-20, 0);
+    ctx.closePath(); ctx.fill();
+  } else if (wtype === 'Mace') {
+    // wooden haft + heavy studded head (Minecraft mace)
+    ctx.fillStyle = '#6b4423';
+    roundRect(8, -3, len, 6, 3); ctx.fill();
+    const hx = 10 + len, R = 13;
+    // dark heavy head block
+    ctx.fillStyle = '#3a3340';
+    roundRect(hx-3, -R, R*1.7, R*2, 5); ctx.fill();
+    // metal/material plating bands
+    ctx.fillStyle = grad;
+    roundRect(hx-3, -R, R*1.7, 6, 3); ctx.fill();          // top band
+    roundRect(hx-3, R-6, R*1.7, 6, 3); ctx.fill();         // bottom band
+    // forward spikes (top, middle, bottom)
+    ctx.fillStyle = e.edge;
+    const fxp = hx + R*1.7 - 3;
+    for (const sy of [-R*0.62, 0, R*0.62]) {
+      ctx.beginPath();
+      ctx.moveTo(fxp, sy-4); ctx.lineTo(fxp+10, sy); ctx.lineTo(fxp, sy+4);
+      ctx.closePath(); ctx.fill();
+    }
+    // a couple of studs
+    ctx.fillStyle = e.col;
+    ctx.beginPath(); ctx.arc(hx+6, -3, 2.4, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(hx+6, 4, 2.4, 0, 7); ctx.fill();
+  } else {
+    // dagger / sword — tapered blade (length & width scale with weapon)
+    ctx.beginPath();
+    ctx.moveTo(12, -hw);
+    ctx.lineTo(12+len-8, -hw);
+    ctx.lineTo(12+len, 0);
+    ctx.lineTo(12+len-8, hw);
+    ctx.lineTo(12, hw);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fillRect(14, -hw*0.5, len-12, 1.4);
+  }
+
+  // swing whoosh
+  if (f.atkT > 0) {
+    ctx.strokeStyle = e.edge; ctx.globalAlpha = 0.5; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(0,0, 12+len, -1.1, 0.5); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+
+// ---- Special-attack visuals ----
+function drawSpecialUnder(f) {
+  // sword dash: motion-blur afterimages + a forward gust
+  if (f.dashT > 0) {
+    for (let k=1;k<=4;k++){
+      ctx.globalAlpha = 0.20 * (5-k)/4;
+      ctx.fillStyle = f.color.body;
+      const tx = f.x - f.facing*k*13;
+      roundRect(tx - f.w/2, f.y - f.h/2, f.w, f.h, 9); ctx.fill();
+    }
+    ctx.globalAlpha = 0.18; ctx.fillStyle = '#cdeeff';
+    ctx.beginPath();
+    ctx.moveTo(f.x, f.y - 20);
+    ctx.lineTo(f.x + f.facing*78, f.y);
+    ctx.lineTo(f.x, f.y + 20);
+    ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  // spear spin: ground crater + filled area
+  if (f.spinT > 0) {
+    const e = eff(f), R = 100, prog = 1 - f.spinT;
+    ctx.globalAlpha = 0.12; ctx.fillStyle = e.edge;
+    ctx.beginPath(); ctx.arc(f.x, f.y, R, 0, 7); ctx.fill();
+    ctx.globalAlpha = 0.55; ctx.strokeStyle = e.edge; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(f.x, f.y, R*Math.min(1, 0.45+prog), 0, 7); ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawSpecialOver(f) {
+  const e = eff(f);
+  // axe orbit: two axes spinning around the fighter
+  if (f.orbitT > 0) {
+    ctx.globalAlpha = 0.25; ctx.strokeStyle = '#ffce7a'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(f.x, f.y, 52, 0, 7); ctx.stroke();
+    ctx.globalAlpha = 1;
+    for (let s=0;s<2;s++){
+      const a = f.orbitAng + s*Math.PI;
+      drawMiniAxe(f.x + Math.cos(a)*52, f.y + Math.sin(a)*52, a + Math.PI/2, e);
+    }
+  }
+  // spear spin: two long spear blades sweeping through the crater
+  if (f.spinT > 0) {
+    const R = 100;
+    for (let s=0;s<2;s++){
+      ctx.save();
+      ctx.translate(f.x, f.y);
+      ctx.rotate(f.spinAng + s*Math.PI);
+      ctx.fillStyle = '#6b4423'; roundRect(-R*0.4, -2.5, R*1.4, 5, 2); ctx.fill();
+      ctx.fillStyle = e.col;
+      ctx.beginPath(); ctx.moveTo(R, -8); ctx.lineTo(R+16, 0); ctx.lineTo(R, 8);
+      ctx.lineTo(R-10, 0); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+  }
+}
+
+function drawMiniAxe(x, y, rot, e) {
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(rot);
+  ctx.fillStyle = '#6b4423'; roundRect(-3, -16, 6, 32, 3); ctx.fill();   // haft
+  // single-bit head (blade fans to one side), mounted near the haft top
+  ctx.fillStyle = e.col;
+  ctx.beginPath();
+  ctx.moveTo(2, -14);
+  ctx.lineTo(14, -18);
+  ctx.quadraticCurveTo(22, -3, 8, 12);
+  ctx.quadraticCurveTo(-2, 6, 0, -2);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = e.edge; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(14, -18);
+  ctx.quadraticCurveTo(22, -3, 8, 12);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawProjectiles() {
+  for (const p of projectiles) {
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    if (p.type === 'arrow') {
+      ctx.rotate(Math.atan2(p.vy, p.vx));                  // point along flight path
+      ctx.fillStyle = '#8a5a2b'; roundRect(-15, -1.3, 24, 2.6, 1); ctx.fill();  // shaft
+      ctx.fillStyle = p.col;                                                    // arrowhead
+      ctx.beginPath(); ctx.moveTo(9, -4); ctx.lineTo(17, 0); ctx.lineTo(9, 4); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#dfe2ee';                                                // fletching
+      ctx.beginPath(); ctx.moveTo(-15, -1); ctx.lineTo(-20, -5); ctx.lineTo(-11, -1); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-15, 1); ctx.lineTo(-20, 5); ctx.lineTo(-11, 1); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    } else {
+      ctx.rotate(p.spin);
+      ctx.fillStyle = '#caa64a'; roundRect(-5, -2, 8, 4, 1); ctx.fill();   // hilt
+      ctx.fillStyle = '#5a3a1f'; roundRect(-2, -1, 4, 2, 1); ctx.fill();   // grip
+      ctx.fillStyle = p.col;                                               // blade
+      ctx.beginPath(); ctx.moveTo(3, -3); ctx.lineTo(18, 0); ctx.lineTo(3, 3); ctx.closePath(); ctx.fill();
+      ctx.restore();
+      ctx.globalAlpha = 0.3; ctx.fillStyle = p.col;
+      ctx.beginPath(); ctx.arc(p.x - Math.sign(p.vx)*10, p.y, 2.2, 0, 7); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+
+// Bow held in front of the fighter; string snaps with f.swing after a shot
+function drawBow(f, e) {
+  ctx.translate(f.w/2, 0);
+  // bow limb — a C arc bulging forward
+  ctx.strokeStyle = e.edge; ctx.lineWidth = 4; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.arc(-4, 0, 21, -1.15, 1.15); ctx.stroke();
+  // grip wrap
+  ctx.strokeStyle = '#5a3a1f'; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.arc(-4, 0, 21, -0.22, 0.22); ctx.stroke();
+  // tips
+  const tx = -4 + 21*Math.cos(1.15), ty = 21*Math.sin(1.15);
+  const pull = f.swing * 9;        // string drawn back right after firing
+  ctx.strokeStyle = 'rgba(232,232,242,0.85)'; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(tx, -ty);
+  ctx.lineTo(-4 - pull, 0);
+  ctx.lineTo(tx, ty);
+  ctx.stroke();
+  // nocked arrow while the string is pulled
+  if (f.swing > 0.25) {
+    ctx.fillStyle = '#8a5a2b'; roundRect(-4 - pull, -1.2, 26, 2.4, 1); ctx.fill();
+    ctx.fillStyle = e.edge;
+    ctx.beginPath(); ctx.moveTo(22-pull, -4); ctx.lineTo(30-pull, 0); ctx.lineTo(22-pull, 4); ctx.closePath(); ctx.fill();
+  }
+}
+
+// Heater shield held in front; glows + grows while raised (blockT > 0)
+function drawShield(f, e) {
+  const raised = f.blockT > 0;
+  const s = raised ? 1.22 : 1;
+  const ox = (raised ? 16 : 11);          // pushes forward when raised
+  // protective barrier glow while blocking
+  if (raised) {
+    ctx.globalAlpha = f.blockFlash > 0 ? 0.5 : 0.22;
+    ctx.fillStyle = f.blockFlash > 0 ? '#ffffff' : '#bfe8ff';
+    ctx.beginPath(); ctx.arc(ox+6, 0, 34, -1.25, 1.25); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  const w = 17*s, h = 30*s;
+  // shield body (heater shape, point forward-down)
+  ctx.fillStyle = e.col;
+  ctx.beginPath();
+  ctx.moveTo(ox, -h/2);
+  ctx.lineTo(ox + w, -h/2 + 3);
+  ctx.lineTo(ox + w, h*0.18);
+  ctx.quadraticCurveTo(ox + w, h*0.5, ox + w*0.5, h*0.5 + 4);
+  ctx.quadraticCurveTo(ox, h*0.5, ox, h*0.18);
+  ctx.closePath(); ctx.fill();
+  // rim + center boss
+  ctx.strokeStyle = e.edge; ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.stroke();
+  ctx.fillStyle = e.edge;
+  ctx.beginPath(); ctx.arc(ox + w*0.5, -2, 3.6*s, 0, 7); ctx.fill();
+}
+
+function drawHUD() {
+  for (const f of fighters) {
+    // team 0 panels hug the left, team 1 the right; slots stack upward
+    const bx = f.team === 0 ? 24 : W - 204;
+    const by = H - 100 - f.slot*92;
+
+    ctx.globalAlpha = f.dead ? 0.4 : 1;
+    // panel
+    ctx.fillStyle = 'rgba(15,15,26,0.85)';
+    roundRect(bx, by, 180, 80, 12); ctx.fill();
+    ctx.strokeStyle = f.dead ? '#555' : f.color.body; ctx.lineWidth = 2;
+    roundRect(bx, by, 180, 80, 12); ctx.stroke();
+
+    // name + tier
+    ctx.fillStyle = f.color.body; ctx.font = 'bold 16px Segoe UI';
+    ctx.textAlign = 'left';
+    ctx.fillText(f.color.name, bx+14, by+22);
+    ctx.fillStyle = TIERS[f.tier].edge; ctx.font = '12px Segoe UI';
+    ctx.fillText(WEAPONS[f.weapon].icon+' '+TIERS[f.tier].name+' '+WEAPONS[f.weapon].name, bx+14, by+40);
+
+    if (f.dead) {
+      ctx.fillStyle = '#ff6a78'; ctx.font = 'bold 22px Segoe UI'; ctx.textAlign = 'right';
+      ctx.fillText('OUT', bx+170, by+44);
+      ctx.globalAlpha = 1;
+      continue;
+    }
+
+    // percent
+    const pct = Math.round(f.percent);
+    const hue = Math.min(1, f.percent/180);
+    ctx.fillStyle = `rgb(${255},${Math.round(255-hue*200)},${Math.round(80-hue*80)})`;
+    ctx.font = 'bold 30px Segoe UI'; ctx.textAlign = 'right';
+    ctx.fillText(pct+'%', bx+170, by+44);
+
+    // stocks
+    for (let s=0;s<f.stocks;s++){
+      ctx.fillStyle = f.color.body;
+      ctx.beginPath(); ctx.arc(bx+24+s*16, by+56, 5, 0, 7); ctx.fill();
+    }
+
+    // special cooldown bar
+    const w = WEAPONS[f.weapon];
+    const ready = f.specCd <= 0;
+    const frac = ready ? 1 : 1 - f.specCd/w.specCd;
+    ctx.fillStyle = 'rgba(255,255,255,0.10)';
+    roundRect(bx+14, by+66, 152, 7, 4); ctx.fill();
+    ctx.fillStyle = ready ? '#ffd84a' : f.color.body;
+    roundRect(bx+14, by+66, 152*frac, 7, 4); ctx.fill();
+    ctx.font = '10px Segoe UI'; ctx.textAlign = 'right';
+    ctx.fillStyle = ready ? '#ffd84a' : '#8a8aa0';
+    ctx.fillText(ready ? 'SPECIAL READY' : 'special…', bx+166, by+62);
+  }
+  ctx.globalAlpha = 1;
+  ctx.textAlign = 'left';
+}
+
+function drawForge() {
+  // dim
+  ctx.fillStyle = 'rgba(8,8,16,0.78)'; ctx.fillRect(0,0,W,H);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffd84a'; ctx.font = 'bold 40px Segoe UI';
+  ctx.fillText('⚒ FORGE YOUR SWORD', W/2, 70);
+  ctx.fillStyle = '#9aa'; ctx.font = '16px Segoe UI';
+  ctx.fillText('Hit the green zone to upgrade  ·  Wood → Stone → Iron → Gold → Ruby → Diamond', W/2, 100);
+
+  const L = forgeLayout();
+  for (let i=0;i<forge.bars.length;i++){
+    const b = forge.bars[i];
+    const f = fighters[i];
+    const cy = forgeBarY(i);
+    const bw = 480, bx = W/2 - bw/2, bh = L.bh;
+
+    // label
+    ctx.textAlign = 'left'; ctx.fillStyle = f.color.body; ctx.font='bold 20px Segoe UI';
+    ctx.fillText(f.color.name + (f.isBot?' (Bot)':''), bx, cy-30);
+    ctx.fillStyle = TIERS[f.tier].edge; ctx.font='bold 18px Segoe UI'; ctx.textAlign='right';
+    ctx.fillText(TIERS[f.tier].name + ' ' + WEAPONS[f.weapon].name, bx+bw, cy-30);
+
+    // bar bg
+    ctx.fillStyle = b.lastFlash>0 ? 'rgba(120,40,40,0.6)' : '#181826';
+    roundRect(bx, cy, bw, bh, 8); ctx.fill();
+    ctx.strokeStyle = '#3a3a55'; ctx.lineWidth=2; roundRect(bx, cy, bw, bh, 8); ctx.stroke();
+
+    // green zone
+    const gz = b.gpos*bw, gw = b.gw*bw;
+    const gcol = b.lockedFlash>0 ? '#ffffff' : '#4fe06a';
+    ctx.fillStyle = gcol;
+    roundRect(bx + gz - gw/2, cy+3, gw, bh-6, 5); ctx.fill();
+
+    // arrow
+    const ax = bx + b.pos*bw;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.moveTo(ax, cy-8); ctx.lineTo(ax-7, cy-18); ctx.lineTo(ax+7, cy-18); ctx.closePath(); ctx.fill();
+    ctx.fillRect(ax-2, cy-6, 4, bh+12);
+
+    // tries / key hint
+    ctx.textAlign='left'; ctx.fillStyle='#8a8aa0'; ctx.font='14px Segoe UI';
+    let hint = b.done ? '✓ locked in' :
+      (f.isBot ? 'forging…' : 'press '+keyName(f.ctrl.attack)+'   ·   '+b.tries+' swings left');
+    ctx.fillText(hint, bx, cy+bh+24);
+  }
+
+  // forge sparks (screen space)
+  for (const p of forgeFx) {
+    ctx.globalAlpha = Math.max(0, Math.min(1, p.life*2));
+    ctx.fillStyle = p.col;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  if (forge.phase === 'countdown') {
+    ctx.textAlign='center';
+    const n = Math.ceil(forge.countdown);
+    ctx.fillStyle='#fff'; ctx.font='bold 90px Segoe UI';
+    ctx.fillText(n>0?n:'GO', W/2, H-40);
+  }
+  ctx.textAlign='left';
+}
+
+function drawAnnounce() {
+  announce.t -= 1/60;
+  const a = Math.min(1, announce.t*3);
+  ctx.save();
+  ctx.globalAlpha = a;
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 64px Segoe UI';
+  ctx.fillStyle = announce.color || '#fff';
+  ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 6;
+  const yy = 150 - (1-a)*30;
+  ctx.strokeText(announce.text, W/2, yy);
+  ctx.fillText(announce.text, W/2, yy);
+  ctx.restore();
+  ctx.textAlign = 'left';
+}
+
+// ---- helpers ----
+function roundRect(x,y,w,h,r){
+  r = Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+function keyName(code){
+  const map = { KeyF:'F', Slash:'/', KeyA:'A', KeyD:'D', KeyW:'W', KeyS:'S' };
+  return map[code] || code;
+}
+
+// ============================================================
+//  Main loop
+// ============================================================
+function loop(t) {
+  raf = requestAnimationFrame(loop);
+  let dt = (t - lastT)/1000; lastT = t;
+  if (dt > 0.05) dt = 0.05;
+
+  if (state === 'forge') updateForge(dt);
+  if (state === 'fight') {
+    for (const f of fighters) if (!f.dead) updateFighter(f, dt);
+    resolveAttacks();
+    resolveSpecials(dt);
+    updateCameras(dt);
+  }
+  updateParticles(dt);
+
+  // track key edges for jump
+  for (const c of CONTROLS) prevKeys[c.jump] = keys[c.jump];
+
+  draw();
+}
+
+// ============================================================
+//  Menu wiring
+// ============================================================
+function buildWeaponPicker(containerId, current, setter) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = '';
+  WEAPONS.forEach((w, i) => {
+    const b = document.createElement('div');
+    b.className = 'wbtn' + (i===current ? ' sel' : '');
+    b.innerHTML = `<span class="wi">${w.icon}</span><span class="wn">${w.name}</span><span class="wb">${w.blurb}</span><span class="wb" style="color:#ffce7a;">★ ${w.spec}</span>`;
+    b.onclick = () => { setter(i); buildMenu(); };
+    el.appendChild(b);
+  });
+}
+
+function buildMenu() {
+  const p1c = document.getElementById('p1colors');
+  const p2c = document.getElementById('p2colors');
+  p1c.innerHTML=''; p2c.innerHTML='';
+  COLORS.forEach((c,i) => {
+    const s1 = document.createElement('div');
+    s1.className='swatch'+(i===p1Color?' sel':'');
+    s1.style.background=c.body; s1.style.color=c.body;
+    s1.onclick=()=>{ if(i===p2Color) return; p1Color=i; buildMenu(); };
+    p1c.appendChild(s1);
+    const s2 = document.createElement('div');
+    s2.className='swatch'+(i===p2Color?' sel':'');
+    s2.style.background=c.body; s2.style.color=c.body;
+    s2.onclick=()=>{ if(i===p1Color) return; p2Color=i; buildMenu(); };
+    p2c.appendChild(s2);
+  });
+  // weapon pickers — row 1 always, row 2 only for 2v2 (team 2)
+  buildWeaponPicker('p1weapons', p1Weapon, v=>p1Weapon=v);
+  buildWeaponPicker('p2weapons', p2Weapon, v=>p2Weapon=v);
+  const is2v2 = mode === '2v2';
+  document.getElementById('weaponRow2').style.display = is2v2 ? '' : 'none';
+  if (is2v2) {
+    buildWeaponPicker('p3weapons', p3Weapon, v=>p3Weapon=v);
+    buildWeaponPicker('p4weapons', p4Weapon, v=>p4Weapon=v);
+  }
+
+  // labels per mode
+  if (is2v2) {
+    // colours pick the teams; row 1 = Team 1 weapons, row 2 = Team 2 weapons
+    document.getElementById('p1label').textContent = 'Team 1 colour';
+    document.getElementById('p2label').textContent = 'Team 2 colour';
+    document.getElementById('p1wlabel').textContent = 'Team 1 — weapon A';
+    document.getElementById('p2wlabel').textContent = 'Team 1 — weapon B';
+    document.getElementById('p3wlabel').textContent = 'Team 2 — weapon A';
+    document.getElementById('p4wlabel').textContent = 'Team 2 — weapon B';
+  } else {
+    const n1 = mode==='botbot' ? 'Bot 1' : 'Player 1';
+    const n2 = mode==='bot' ? 'Bot' : (mode==='botbot' ? 'Bot 2' : 'Player 2');
+    document.getElementById('p1label').textContent = n1+' colour';
+    document.getElementById('p2label').textContent = n2+' colour';
+    document.getElementById('p1wlabel').textContent = n1+' weapon';
+    document.getElementById('p2wlabel').textContent = n2+' weapon';
+  }
+  document.getElementById('diffPanel').style.display = mode==='pvp' ? 'none' : '';
+  document.getElementById('humansPanel').style.display = is2v2 ? '' : 'none';
+
+  let controls;
+  const p1Keys = `<b>P1:</b> <kbd>A</kbd><kbd>D</kbd> · <kbd>W</kbd> jump · <kbd>S</kbd> drop · <kbd>F</kbd> swing · <kbd>G</kbd> special`;
+  const p2Keys = `<b>P2:</b> <kbd>←</kbd><kbd>→</kbd> · <kbd>↑</kbd> · <kbd>↓</kbd> · <kbd>/</kbd> swing · <kbd>.</kbd> special`;
+  if (mode==='botbot')
+    controls = `<b>🤖 Bot vs Bot</b> — sit back and watch. Difficulty applies to both.`;
+  else if (mode==='2v2')
+    controls = humans===0 ? `<b>🤖 2v2 bot battle</b> — Team 1 vs Team 2, full-map view.`
+             : humans===1 ? `${p1Keys} &nbsp; (you + a bot ally vs 2 bots)`
+             : `${p1Keys} &nbsp;|&nbsp; ${p2Keys} &nbsp; (co-op vs 2 bots)`;
+  else if (mode==='bot')
+    controls = `<b>You:</b> <kbd>A</kbd><kbd>D</kbd> move · <kbd>W</kbd> jump (double) · <kbd>S</kbd> drop · <kbd>F</kbd> swing · <kbd>G</kbd> special`;
+  else
+    controls = `${p1Keys} &nbsp;|&nbsp; ${p2Keys}`;
+  document.getElementById('keyhint').innerHTML = controls
+    + `<br><span style="color:#ffd84a;">⚡ Swing while airborne for a CRIT — 150% damage!</span>`
+    + `<br><span style="color:#ffce7a;">★ Each weapon has a unique SPECIAL (3–6s cooldown)</span>`;
+}
+
+const modeBtns = { bot:'modeBot', pvp:'modePvp', botbot:'modeBotBot', '2v2':'mode2v2' };
+function setMode(m) {
+  mode = m;
+  for (const [k, id] of Object.entries(modeBtns))
+    document.getElementById(id).classList.toggle('sel', k===m);
+  buildMenu();
+}
+document.getElementById('modeBot').onclick    = () => setMode('bot');
+document.getElementById('modePvp').onclick    = () => setMode('pvp');
+document.getElementById('modeBotBot').onclick = () => setMode('botbot');
+document.getElementById('mode2v2').onclick    = () => setMode('2v2');
+
+const humBtns = { 0:'hum0', 1:'hum1', 2:'hum2' };
+function setHumans(h) {
+  humans = h;
+  for (const [k, id] of Object.entries(humBtns))
+    document.getElementById(id).classList.toggle('sel', +k===h);
+  buildMenu();
+}
+document.getElementById('hum0').onclick = () => setHumans(0);
+document.getElementById('hum1').onclick = () => setHumans(1);
+document.getElementById('hum2').onclick = () => setHumans(2);
+
+const diffBtns = { easy:'diffEasy', mid:'diffMid', hard:'diffHard' };
+function setDiff(level) {
+  difficulty = level;
+  for (const [lvl, id] of Object.entries(diffBtns))
+    document.getElementById(id).classList.toggle('sel', lvl===level);
+}
+document.getElementById('diffEasy').onclick = () => setDiff('easy');
+document.getElementById('diffMid').onclick  = () => setDiff('mid');
+document.getElementById('diffHard').onclick = () => setDiff('hard');
+
+function startGame() {
+  document.getElementById('menu').classList.add('hidden');
+  document.getElementById('win').classList.add('hidden');
+  particles = [];
+  projectiles = [];
+  forgeFx = [];
+
+  // Build the roster for the chosen mode.
+  // roster entry: [colorIdx, weaponIdx, isBot, team, slot, ctrlIndex]
+  let roster;
+  if (mode === '2v2') {
+    // each team shares one colour: Team 1 = p1Color, Team 2 = p2Color
+    const h = humans;   // 0, 1 or 2 human players on team 1
+    roster = [
+      [p1Color, p1Weapon, h < 1, 0, 0, 0],          // team 1 slot 0 (you, if any humans)
+      [p1Color, p2Weapon, h < 2, 0, 1, 1],          // team 1 slot 1 (player 2, or a bot ally)
+      [p2Color, p3Weapon, true, 1, 0],              // team 2 bots (other colour)
+      [p2Color, p4Weapon, true, 1, 1],
+    ];
+  } else {
+    const p1Bot = mode === 'botbot';
+    const p2Bot = mode === 'bot' || mode === 'botbot';
+    roster = [
+      [p1Color, p1Weapon, p1Bot, 0, 0, 0],
+      [p2Color, p2Weapon, p2Bot, 1, 0, p1Bot ? 0 : 1],
+    ];
+  }
+
+  fighters = roster.map((r, i) => {
+    const f = makeFighter(i, r[0], r[1], r[2], r[3], r[4], r[5]);
+    if (f.isBot) f.diff = DIFFS[difficulty];
+    return f;
+  });
+  startForge();
+}
+document.getElementById('startBtn').onclick = startGame;
+document.getElementById('rematchBtn').onclick = startGame;
+document.getElementById('menuBtn').onclick = () => {
+  document.getElementById('win').classList.add('hidden');
+  document.getElementById('menu').classList.remove('hidden');
+  state='menu';
+};
+
+buildMenu();
+lastT = performance.now();
+raf = requestAnimationFrame(loop);
+
+// scale canvas to fit window nicely
+function fit() {
+  const pad = 24;
+  const sx = (innerWidth - pad) / W;
+  const sy = (innerHeight - pad) / H;
+  const s = Math.min(sx, sy, 1.4);
+  cv.style.width = (W*s)+'px';
+  cv.style.height = (H*s)+'px';
+}
+addEventListener('resize', fit); fit();
+</script>
+</body>
+</html>
