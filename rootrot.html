@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rootrot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Spectral:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
+    font-family:"Spectral",Georgia,serif; color:#cfe0d2; cursor:default;}
+  #cv{position:fixed; inset:0; width:100%; height:100%; display:block; background:#000;}
+
+  /* overlays on top of the canvas */
+  .ov{position:fixed; inset:0; pointer-events:none;}
+  #vig{z-index:5; background:radial-gradient(120% 120% at 50% 50%, transparent 42%, rgba(0,0,0,0.7) 100%);}
+  #grain{z-index:6; mix-blend-mode:overlay; opacity:.05;
+    background:repeating-linear-gradient(0deg, rgba(0,0,0,.9) 0 2px, rgba(255,255,255,.9) 2px 4px);
+    animation:grain .12s steps(2) infinite;}
+  @keyframes grain{0%{transform:translateY(0);}100%{transform:translateY(2px);}}
+  #red{z-index:7; opacity:0; background:radial-gradient(circle at 50% 50%, transparent 30%, rgba(190,0,40,0.6) 100%); transition:opacity .5s;}
+  #red.on{opacity:1; transition:opacity .04s;}
+  #blink{z-index:9; background:#000; opacity:0; transition:opacity .2s;}
+  #blink.on{opacity:1; transition:opacity .03s;}
+  #jump{z-index:10; opacity:0; display:flex; align-items:center; justify-content:center;}
+  #jump.on{opacity:1;}
+  #jump svg{width:min(70vh,70vw); height:min(70vh,70vw);}
+
+  /* HUD */
+  #hud{position:fixed; left:18px; bottom:16px; z-index:8; width:230px; font-size:12px; letter-spacing:1px;}
+  .meter{margin-bottom:8px;}
+  .meter .ml{display:flex; justify-content:space-between; text-transform:uppercase; font-size:10px; letter-spacing:2px; color:#7c8c80; margin-bottom:3px;}
+  .meter .mb{height:7px; border-radius:5px; background:rgba(255,255,255,0.06); overflow:hidden;}
+  .meter .mb>span{display:block; height:100%; transition:width .12s linear;}
+  #sanFill{background:linear-gradient(90deg,#b06bff,#7d3df0);}
+  #stamFill{background:linear-gradient(90deg,#56d98a,#349a62);}
+  #hearts{position:fixed; right:18px; bottom:16px; z-index:8; font-family:"Cinzel",serif; text-align:right;}
+  #hearts .hn{font-size:24px; color:#ffd76a; text-shadow:0 0 14px rgba(255,215,106,.5);}
+  #hearts .hl{font-size:10px; letter-spacing:3px; text-transform:uppercase; color:#7c8c80;}
+  #subtitle{position:fixed; left:50%; top:64%; transform:translateX(-50%); z-index:8; text-align:center;
+    font-style:italic; color:#9a8fae; font-size:16px; text-shadow:0 0 12px #000; opacity:0; transition:opacity .6s; max-width:80vw;}
+  #subtitle.on{opacity:1;}
+  .top{position:fixed; top:12px; z-index:11; color:#5e7264; font-size:12px; letter-spacing:2px; cursor:pointer;
+    border:1px solid rgba(120,200,150,0.12); padding:5px 11px; border-radius:8px; background:rgba(3,5,6,0.6);
+    text-decoration:none; font-family:"Spectral",serif;}
+  .top:hover{color:#56d98a; border-color:#56d98a;}
+  #back{left:14px;} #mute{right:14px;}
+
+  /* menu / end screens */
+  .screen{position:fixed; inset:0; z-index:20; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; gap:12px; padding:26px; background:radial-gradient(circle at 50% 40%, #0a0510, #010102 70%);}
+  .screen.hidden{display:none;}
+  .screen h1{font-family:"Cinzel",serif; font-weight:800; font-size:clamp(46px,11vw,104px); margin:0; letter-spacing:8px;
+    color:#cfe7d4; text-shadow:0 0 30px rgba(86,217,138,0.25), 0 0 70px rgba(226,59,208,0.18); animation:tb 6s ease-in-out infinite;}
+  @keyframes tb{0%,100%{letter-spacing:8px;}50%{letter-spacing:11px; text-shadow:0 0 40px rgba(226,59,208,0.4);}}
+  .screen .tag{color:#8a9a8e; font-style:italic; font-size:17px; max-width:520px; line-height:1.6;}
+  .screen .keys{color:#5e7264; font-size:13px; letter-spacing:1px; line-height:2;}
+  .screen .keys b{color:#aebfb1; font-weight:400; border:1px solid rgba(120,200,150,0.2); border-radius:5px; padding:1px 7px;}
+  .screen .btn{cursor:pointer; font-family:"Cinzel",serif; font-weight:700; letter-spacing:3px; font-size:18px; margin-top:14px;
+    color:#06100a; background:linear-gradient(100deg,#56d98a,#349a62); border:none; border-radius:11px; padding:14px 40px;
+    box-shadow:0 0 34px -6px #56d98a; animation:pulse 1.6s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.04);}}
+  .screen.dead h1{color:#f3a8e6; text-shadow:0 0 36px #e23bd0; letter-spacing:6px; animation:none;}
+  .screen.win h1{color:#bff0cd; text-shadow:0 0 36px #56d98a; letter-spacing:6px; animation:none;}
+  .screen.dead .btn{background:#caa0e8; color:#160a1e; box-shadow:0 0 34px -6px #b06bff;}
+</style>
+</head>
+<body>
+  <canvas id="cv"></canvas>
+  <div class="ov" id="vig"></div>
+  <div class="ov" id="grain"></div>
+  <div class="ov" id="red"></div>
+  <div class="ov" id="blink"></div>
+  <div class="ov" id="jump"></div>
+
+  <a href="index.html" class="top" id="back">← back</a>
+  <div class="top" id="mute">🔊</div>
+
+  <div id="hud">
+    <div class="meter"><div class="ml"><span>sanity</span><span id="sanTxt">100</span></div><div class="mb"><span id="sanFill"></span></div></div>
+    <div class="meter"><div class="ml"><span>stamina</span><span id="stamTxt">100</span></div><div class="mb"><span id="stamFill"></span></div></div>
+  </div>
+  <div id="hearts"><div class="hn"><span id="heartN">0</span>/4</div><div class="hl">hearts cleansed</div></div>
+  <div id="subtitle"></div>
+
+  <div class="screen" id="menu">
+    <h1>ROOTROT</h1>
+    <div class="tag">You are the last Fungus Warden, alone in a forest swallowed by rot. Something in the dark is awake, and it is hunting you. Find the four buried hearts and cleanse them before dawn — without being caught.</div>
+    <div class="keys"><b>WASD</b> / arrows move &nbsp;·&nbsp; <b>Shift</b> run &nbsp;·&nbsp; stand on a <b>heart</b> to cleanse it<br>your lantern is small · cleansing draws the Hollow · do not let it touch you</div>
+    <button class="btn" id="startBtn">ENTER THE FOREST</button>
+  </div>
+
+  <div class="screen hidden" id="end">
+    <h1 id="endTitle"></h1>
+    <div class="tag" id="endMsg"></div>
+    <button class="btn" id="againBtn">AGAIN</button>
+  </div>
+
+<script>
+  const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+  const lightCv=document.createElement('canvas'), lctx=lightCv.getContext('2d');
+  const $=id=>document.getElementById(id);
+  const rand=(a,b)=>a+Math.random()*(b-a);
+  const dist=(ax,ay,bx,by)=>Math.hypot(ax-bx,ay-by);
+  const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+
+  let W=0,H=0;
+  function resize(){ W=cv.width=lightCv.width=innerWidth; H=cv.height=lightCv.height=innerHeight; }
+  addEventListener('resize',resize); resize();
+
+  const WORLD={w:2100, h:1650};
+  const HEART_GOAL=4;
+  let state='menu';                 // menu | play | dead | win
+  let player, hollow, trees=[], hearts=[], ground=[], cam={x:0,y:0}, t0=0, subTimer=0;
+
+  /* ---------------- audio ---------------- */
+  const Sound={ ac:null,master:null,noise:null,on:true,started:false,
+    init(){ if(this.started)return; try{
+      this.ac=new (AudioContext||webkitAudioContext)(); if(this.ac.state==='suspended') this.ac.resume();
+      this.master=this.ac.createGain(); this.master.gain.value=this.on?0.7:0; this.master.connect(this.ac.destination);
+      const len=this.ac.sampleRate*2,b=this.ac.createBuffer(1,len,this.ac.sampleRate),d=b.getChannelData(0);
+      let last=0; for(let i=0;i<len;i++){const w=Math.random()*2-1; last=(last+0.02*w)/1.02; d[i]=last*3.2;} this.noise=b;
+      this.drone(); this.started=true; this.heart(0);
+    }catch(e){ this.ac=null; } },
+    drone(){ const ac=this.ac;
+      const o=ac.createOscillator(); o.type='sine'; o.frequency.value=40;
+      const o2=ac.createOscillator(); o2.type='sine'; o2.frequency.value=53; o2.detune.value=-6;
+      const lp=ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=180;
+      const g=ac.createGain(); g.gain.value=0.15; o.connect(lp);o2.connect(lp);lp.connect(g);g.connect(this.master);o.start();o2.start();
+      const ns=ac.createBufferSource(); ns.buffer=this.noise; ns.loop=true;
+      const bp=ac.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=300; bp.Q.value=0.5;
+      const ng=ac.createGain(); ng.gain.value=0.03; ns.connect(bp);bp.connect(ng);ng.connect(this.master);ns.start(); },
+    heart(prox){ if(!this.started) return;
+      if(this.on && this.ac && state==='play'){ const ac=this.ac,t=ac.currentTime,v=0.3+prox*0.5;
+        const thump=(at,f)=>{ const o=ac.createOscillator(); o.type='sine'; o.frequency.setValueAtTime(f,at); o.frequency.exponentialRampToValueAtTime(f*0.5,at+0.16);
+          const g=ac.createGain(); g.gain.setValueAtTime(0.0001,at); g.gain.exponentialRampToValueAtTime(v,at+0.02); g.gain.exponentialRampToValueAtTime(0.0001,at+0.28);
+          o.connect(g);g.connect(this.master);o.start(at);o.stop(at+0.3); };
+        thump(t,56); thump(t+0.19,42);
+      }
+      const p = (state==='play' && player) ? this._prox : 0;
+      setTimeout(()=>this.heart(p), Math.max(420, 1500 - p*1080));
+    },
+    _prox:0, setProx(p){ this._prox=p; },
+    screech(){ if(!this.ac||!this.on)return; const ac=this.ac,t=ac.currentTime;
+      const o=ac.createOscillator(); o.type='sawtooth'; o.frequency.setValueAtTime(900,t); o.frequency.exponentialRampToValueAtTime(180,t+0.5);
+      const g=ac.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.28,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+0.7);
+      const bp=ac.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=1200; bp.Q.value=2; o.connect(bp);bp.connect(g);g.connect(this.master);o.start(t);o.stop(t+0.75);
+      const ns=ac.createBufferSource(); ns.buffer=this.noise; const ng=ac.createGain(); ng.gain.setValueAtTime(0.3,t); ng.gain.exponentialRampToValueAtTime(0.001,t+0.6);
+      const hp=ac.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=600; ns.connect(hp);hp.connect(ng);ng.connect(this.master);ns.start(t);ns.stop(t+0.65); },
+    stinger(){ if(!this.ac||!this.on)return; const ac=this.ac,t=ac.currentTime;
+      [55,73,82,116].forEach(f=>{ const o=ac.createOscillator(); o.type='sawtooth'; o.frequency.value=f;
+        const lp=ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=700;
+        const g=ac.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.24,t+0.03); g.gain.exponentialRampToValueAtTime(0.0001,t+1.7);
+        o.connect(lp);lp.connect(g);g.connect(this.master);o.start(t);o.stop(t+1.8); }); },
+    chime(){ if(!this.ac||!this.on)return; const ac=this.ac,t=ac.currentTime;
+      [392,587,784].forEach((f,i)=>{ const o=ac.createOscillator(); o.type='sine'; o.frequency.value=f;
+        const g=ac.createGain(); const at=t+i*0.08; g.gain.setValueAtTime(0.0001,at); g.gain.exponentialRampToValueAtTime(0.18,at+0.03); g.gain.exponentialRampToValueAtTime(0.0001,at+0.9);
+        o.connect(g);g.connect(this.master);o.start(at);o.stop(at+1); }); },
+    toggle(){ this.on=!this.on; if(this.master) this.master.gain.setTargetAtTime(this.on?0.7:0,this.ac.currentTime,0.05); return this.on; }
+  };
+
+  function flashRed(){ $('red').classList.add('on'); setTimeout(()=>$('red').classList.remove('on'),140); }
+  function say(text){ $('subtitle').textContent=text; $('subtitle').classList.add('on'); subTimer=3.2; }
+
+  /* ---------------- world generation ---------------- */
+  function build(){
+    trees=[]; hearts=[]; ground=[];
+    player={x:WORLD.w/2, y:WORLD.h/2, r:11, san:100, stam:100, sprint:false, dirx:0, diry:1, walking:false};
+    // ground detail (roots / leaf litter) for a sense of motion
+    for(let i=0;i<900;i++) ground.push({x:rand(0,WORLD.w), y:rand(0,WORLD.h), s:rand(1,3), a:rand(0.04,0.13)});
+    // trees, avoiding the start clearing
+    let tries=0;
+    while(trees.length<185 && tries<6000){ tries++;
+      const x=rand(60,WORLD.w-60), y=rand(60,WORLD.h-60);
+      if(dist(x,y,player.x,player.y)<200) continue;
+      if(trees.some(t=>dist(x,y,t.x,t.y)<46)) continue;
+      trees.push({x,y,r:rand(13,20),h:rand(34,58),sw:rand(0.7,1.3)});
+    }
+    // four hearts, spread to far regions
+    const spots=[[0.18,0.2],[0.82,0.22],[0.2,0.82],[0.8,0.8]];
+    for(const [fx,fy] of spots){
+      let x=fx*WORLD.w+rand(-120,120), y=fy*WORLD.h+rand(-120,120);
+      x=clamp(x,120,WORLD.w-120); y=clamp(y,120,WORLD.h-120);
+      hearts.push({x,y,r:30,prog:0,cleansed:false});
+      // clear trees around a heart
+      trees=trees.filter(t=>dist(t.x,t.y,x,y)>70);
+    }
+    // the Hollow spawns far from the player
+    let hx,hy,g=0; do{ hx=rand(120,WORLD.w-120); hy=rand(120,WORLD.h-120); g++; }while(dist(hx,hy,player.x,player.y)<760 && g<200);
+    hollow={x:hx,y:hy,r:18, vx:0,vy:0, state:'wander', tx:hx,ty:hy, alert:0, lost:0, eyePhase:0, seen:false};
+  }
+
+  /* ---------------- input ---------------- */
+  const keys={};
+  addEventListener('keydown',e=>{ keys[e.key.toLowerCase()]=true; if([' ','arrowup','arrowdown','arrowleft','arrowright'].includes(e.key.toLowerCase()))e.preventDefault(); });
+  addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; });
+
+  /* ---------------- update ---------------- */
+  function update(dt){
+    const p=player;
+    // movement input
+    let ix=(keys['d']||keys['arrowright']?1:0)-(keys['a']||keys['arrowleft']?1:0);
+    let iy=(keys['s']||keys['arrowdown']?1:0)-(keys['w']||keys['arrowup']?1:0);
+    const moving=ix||iy;
+    if(moving){ const m=Math.hypot(ix,iy); ix/=m; iy/=m; p.dirx=ix; p.diry=iy; }
+    p.walking=!!moving;
+    // sprint + stamina
+    const wantRun=(keys['shift'])&&moving&&p.stam>1;
+    p.sprint=wantRun;
+    if(wantRun) p.stam=clamp(p.stam-28*dt,0,100); else p.stam=clamp(p.stam+16*dt,0,100);
+    const speed=(wantRun?270:150);
+    if(moving){ p.x+=ix*speed*dt; p.y+=iy*speed*dt; }
+    p.x=clamp(p.x,40,WORLD.w-40); p.y=clamp(p.y,40,WORLD.h-40);
+    // collide with trees
+    for(const t of trees){ const d=dist(p.x,p.y,t.x,t.y), min=t.r+p.r; if(d<min && d>0){ const nx=(p.x-t.x)/d, ny=(p.y-t.y)/d, push=min-d; p.x+=nx*push; p.y+=ny*push; } }
+
+    // hearts — cleanse by standing on one
+    let onHeart=null;
+    for(const h of hearts){ if(h.cleansed) continue;
+      if(dist(p.x,p.y,h.x,h.y)<h.r+18){ onHeart=h;
+        h.prog=clamp(h.prog + dt/3.0, 0, 1);      // ~3s channel
+        if(h.prog>=1){ h.cleansed=true; p.san=clamp(p.san+25,0,100); heartsCleansed++; Sound.chime(); $('heartN').textContent=heartsCleansed;
+          say(heartsCleansed>=HEART_GOAL?'the last heart wakes — dawn is coming':'a heart wakes. it shines. it will hide you.');
+          if(heartsCleansed>=HEART_GOAL){ win(); return; } }
+      } else if(h.prog>0 && h.prog<1){ h.prog=clamp(h.prog-dt*0.6,0,1); }   // decays if you leave mid-channel
+    }
+    player.channeling=!!onHeart && onHeart.prog<1;
+
+    // nearest cleansed-heart light (safe glow) for sanity
+    let nearSafe=1e9;
+    for(const h of hearts) if(h.cleansed) nearSafe=Math.min(nearSafe,dist(p.x,p.y,h.x,h.y));
+
+    // ---- the Hollow AI ----
+    const ho=hollow, d=dist(p.x,p.y,ho.x,ho.y);
+    // how loud/visible the player is = detection range
+    let noise = p.sprint?360 : moving?230 : 130;
+    if(player.channeling) noise=Math.max(noise,420);
+    if(nearSafe<160) noise+=80;                 // standing in a cleansed heart's light exposes you
+    noise += (100-p.san)*0.6;                    // it smells your fear
+    const detected = d<noise;
+
+    if(ho.state!=='chase' && detected){ ho.state='chase'; ho.alert=1; if(!ho._screamed||performance.now()-ho._screamed>2500){ Sound.screech(); flashRed(); say(pickGlimpse()); ho._screamed=performance.now(); } }
+    if(ho.state==='chase'){
+      ho.tx=p.x; ho.ty=p.y;
+      if(d>560){ ho.lost+=dt; if(ho.lost>2.6){ ho.state='wander'; ho.lost=0; pickWander(ho); } }
+      else ho.lost=0;
+    } else { // wander, drifting; occasionally toward player's region
+      if(dist(ho.x,ho.y,ho.tx,ho.ty)<40) pickWander(ho);
+    }
+    const hspeed = ho.state==='chase' ? 212 : 78;
+    let hdx=ho.tx-ho.x, hdy=ho.ty-ho.y, hm=Math.hypot(hdx,hdy)||1;
+    ho.x+=hdx/hm*hspeed*dt; ho.y+=hdy/hm*hspeed*dt;
+    ho.x=clamp(ho.x,30,WORLD.w-30); ho.y=clamp(ho.y,30,WORLD.h-30);
+    for(const t of trees){ const dd=dist(ho.x,ho.y,t.x,t.y), min=t.r+ho.r; if(dd<min&&dd>0){ const nx=(ho.x-t.x)/dd, ny=(ho.y-t.y)/dd; ho.x+=nx*(min-dd); ho.y+=ny*(min-dd); } }
+    ho.eyePhase+=dt;
+
+    // proximity for heartbeat + sanity
+    const prox=clamp(1-d/720,0,1); Sound.setProx(prox);
+    // sanity: drains near the hunter & in the deep dark, recovers in heart-light
+    let sanRate=-0.8;
+    if(ho.state==='chase') sanRate-=10*prox;
+    else sanRate-=4*prox;
+    if(nearSafe<170) sanRate+=14;
+    p.san=clamp(p.san+sanRate*dt,0,100);
+
+    // caught?
+    if(d<p.r+ho.r+6){ die(); return; }
+    if(p.san<=0){ die('mind'); return; }
+
+    // camera
+    cam.x=clamp(p.x-W/2,0,WORLD.w-W); cam.y=clamp(p.y-H/2,0,WORLD.h-H);
+    if(WORLD.w<W) cam.x=(WORLD.w-W)/2; if(WORLD.h<H) cam.y=(WORLD.h-H)/2;
+
+    // hud
+    $('sanFill').style.width=p.san+'%'; $('sanTxt').textContent=Math.round(p.san);
+    $('stamFill').style.width=p.stam+'%'; $('stamTxt').textContent=Math.round(p.stam);
+    if(subTimer>0){ subTimer-=dt; if(subTimer<=0) $('subtitle').classList.remove('on'); }
+  }
+  function pickWander(ho){ const ang=rand(0,Math.PI*2), r=rand(220,520); ho.tx=clamp(ho.x+Math.cos(ang)*r,60,WORLD.w-60); ho.ty=clamp(ho.y+Math.sin(ang)*r,60,WORLD.h-60); }
+  const GLIMPSES=['it heard you','it is coming','RUN','it has your scent','behind you','do not stop'];
+  function pickGlimpse(){ return GLIMPSES[Math.floor(Math.random()*GLIMPSES.length)]; }
+
+  /* ---------------- render ---------------- */
+  function render(){
+    ctx.clearRect(0,0,W,H);
+    // forest floor
+    ctx.fillStyle='#050806'; ctx.fillRect(0,0,W,H);
+    ctx.save(); ctx.translate(-cam.x,-cam.y);
+
+    // ground detail
+    ctx.fillStyle='#10231a';
+    for(const gd of ground){ if(gd.x<cam.x-20||gd.x>cam.x+W+20||gd.y<cam.y-20||gd.y>cam.y+H+20) continue;
+      ctx.globalAlpha=gd.a; ctx.fillRect(gd.x,gd.y,gd.s,gd.s); }
+    ctx.globalAlpha=1;
+
+    // hearts (totems)
+    for(const h of hearts){ if(h.x<cam.x-60||h.x>cam.x+W+60||h.y<cam.y-60||h.y>cam.y+H+60) continue; drawHeart(h); }
+    // trees
+    for(const t of trees){ if(t.x<cam.x-40||t.x>cam.x+W+40||t.y<cam.y-60||t.y>cam.y+H+40) continue; drawTree(t); }
+    // the Hollow
+    drawHollow(hollow);
+    // player
+    drawPlayer(player);
+    ctx.restore();
+
+    // ---- darkness with lantern hole ----
+    const lr = 120*(0.45+0.55*player.san/100);   // lantern shrinks as sanity falls
+    lctx.clearRect(0,0,W,H);
+    lctx.globalCompositeOperation='source-over';
+    lctx.fillStyle='rgba(0,0,0,0.985)'; lctx.fillRect(0,0,W,H);
+    lctx.globalCompositeOperation='destination-out';
+    punch(player.x-cam.x, player.y-cam.y, lr, 1);
+    punch(player.x-cam.x, player.y-cam.y, lr*2.1, 0.35);   // soft outer falloff
+    for(const h of hearts){ if(h.cleansed) punch(h.x-cam.x,h.y-cam.y, 150, 0.9); else if(h.prog>0) punch(h.x-cam.x,h.y-cam.y, 60+h.prog*90, 0.5); }
+    lctx.globalCompositeOperation='source-over';
+    ctx.drawImage(lightCv,0,0);
+
+    // distant heart-beacons: sickly lights in the black that lure you toward the objective
+    drawBeacons();
+    // a faint pull at the screen edge toward the nearest heart, so you are never wholly lost
+    drawPointer();
+    // the Hollow's eyes glow even through the dark when it is close-ish
+    drawEyes(hollow);
+  }
+
+  function drawBeacons(){
+    for(const h of hearts){ if(h.cleansed) continue;
+      const sx=h.x-cam.x, sy=h.y-cam.y;
+      if(sx<-80||sx>W+80||sy<-80||sy>H+80) continue;
+      const d=dist(player.x,player.y,h.x,h.y);
+      const a=clamp(1-d/1500,0.14,0.7)*(0.7+0.3*Math.sin(performance.now()/600));
+      const r=30+h.prog*26;
+      const g=ctx.createRadialGradient(sx,sy,0,sx,sy,r);
+      g.addColorStop(0,`rgba(255,120,235,${a})`); g.addColorStop(.5,`rgba(226,59,208,${a*0.5})`); g.addColorStop(1,'rgba(226,59,208,0)');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(sx,sy,r,0,7); ctx.fill();
+    }
+  }
+  function drawPointer(){
+    let nh=null,nd=1e9;
+    for(const h of hearts){ if(h.cleansed) continue; const d=dist(player.x,player.y,h.x,h.y); if(d<nd){ nd=d; nh=h; } }
+    if(!nh) return;
+    const sx=nh.x-cam.x, sy=nh.y-cam.y;
+    if(sx>40&&sx<W-40&&sy>40&&sy<H-40) return;     // on-screen already → beacon shows it
+    const ang=Math.atan2(sy-H/2, sx-W/2);
+    const ex=clamp(W/2+Math.cos(ang)*(W*0.46),30,W-30), ey=clamp(H/2+Math.sin(ang)*(H*0.46),30,H-30);
+    const a=0.18+0.1*Math.sin(performance.now()/500);
+    const g=ctx.createRadialGradient(ex,ey,0,ex,ey,46);
+    g.addColorStop(0,`rgba(226,59,208,${a})`); g.addColorStop(1,'rgba(226,59,208,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(ex,ey,46,0,7); ctx.fill();
+  }
+
+  function drawTree(t){
+    ctx.save(); ctx.translate(t.x,t.y);
+    ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.ellipse(0,t.r*0.4,t.r*1.3,t.r*0.5,0,0,7); ctx.fill();
+    ctx.strokeStyle='#1c130c'; ctx.lineWidth=t.r*0.7; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(0,t.r*0.3); ctx.lineTo(0,-t.h); ctx.stroke();
+    ctx.fillStyle='#0d2417'; ctx.beginPath(); ctx.ellipse(0,-t.h, t.r*1.5*t.sw, t.r*1.7,0,0,7); ctx.fill();
+    ctx.fillStyle='#0a1c12'; ctx.beginPath(); ctx.ellipse(t.r*0.4,-t.h-t.r*0.4, t.r*1.0, t.r*1.1,0,0,7); ctx.fill();
+    ctx.restore();
+  }
+  function drawHeart(h){
+    ctx.save(); ctx.translate(h.x,h.y);
+    const cl=h.cleansed, pr=h.prog;
+    const glow=cl?1:(0.25+pr*0.75);
+    ctx.shadowBlur=40*glow; ctx.shadowColor=cl?'#ffd76a':'#e23bd0';
+    // root pedestal
+    ctx.strokeStyle=cl?'#c79b3a':'#3a1538'; ctx.lineWidth=5; ctx.lineCap='round';
+    for(let i=0;i<6;i++){ const a=i/6*Math.PI*2; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.cos(a)*h.r, Math.sin(a)*h.r*0.7+8); ctx.stroke(); }
+    // the heart pod
+    ctx.shadowBlur=cl?34:18*glow;
+    const grd=ctx.createRadialGradient(0,-2,2,0,-2,h.r);
+    if(cl){ grd.addColorStop(0,'#fff3c8'); grd.addColorStop(.6,'#ffd76a'); grd.addColorStop(1,'#7a5a14'); }
+    else { grd.addColorStop(0,'#ff9ef0'); grd.addColorStop(.5,'#e23bd0'); grd.addColorStop(1,'#3a0a35'); }
+    ctx.fillStyle=grd; ctx.beginPath(); ctx.ellipse(0,-2,h.r*0.7,h.r*0.85,0,0,7); ctx.fill();
+    ctx.shadowBlur=0;
+    // channel ring
+    if(!cl && pr>0){ ctx.strokeStyle='#ffe9a0'; ctx.lineWidth=4; ctx.beginPath(); ctx.arc(0,-2,h.r*1.05,-Math.PI/2,-Math.PI/2+pr*Math.PI*2); ctx.stroke(); }
+    ctx.restore();
+  }
+  function drawPlayer(p){
+    ctx.save(); ctx.translate(p.x,p.y);
+    // lantern glow
+    ctx.shadowBlur=26; ctx.shadowColor='#ffcf6a';
+    ctx.fillStyle='rgba(255,210,120,0.9)'; ctx.beginPath(); ctx.arc(8,2,4,0,7); ctx.fill();
+    ctx.shadowBlur=0;
+    // cloak
+    ctx.fillStyle='#14241a'; ctx.beginPath(); ctx.moveTo(0,-12); ctx.quadraticCurveTo(11,-2,8,12); ctx.lineTo(-8,12); ctx.quadraticCurveTo(-11,-2,0,-12); ctx.fill();
+    ctx.fillStyle='#0c160f'; ctx.beginPath(); ctx.arc(0,-11,6,0,7); ctx.fill();   // hood
+    ctx.fillStyle='#3a8f5a'; ctx.beginPath(); ctx.arc(-1.5,-11,1.4,0,7); ctx.arc(2,-11,1.4,0,7); ctx.fill(); // faint eyes
+    if(p.sprint){ ctx.globalAlpha=0.5; ctx.strokeStyle='#1a2a20'; ctx.beginPath(); ctx.moveTo(-p.dirx*14,-p.diry*14); ctx.lineTo(-p.dirx*22,-p.diry*22); ctx.stroke(); ctx.globalAlpha=1; }
+    ctx.restore();
+  }
+  function drawHollow(h){
+    ctx.save(); ctx.translate(h.x,h.y);
+    const chase=h.state==='chase';
+    ctx.shadowBlur=chase?30:14; ctx.shadowColor='#e23bd0';
+    // tall ragged body
+    ctx.fillStyle='#0a0410'; ctx.beginPath();
+    ctx.moveTo(0,-46); ctx.quadraticCurveTo(20,-20,15,18);
+    ctx.quadraticCurveTo(7,30,9,40); ctx.lineTo(2,30); ctx.lineTo(0,42); ctx.lineTo(-2,30); ctx.lineTo(-9,40);
+    ctx.quadraticCurveTo(-7,30,-15,18); ctx.quadraticCurveTo(-20,-20,0,-46); ctx.fill();
+    // wet tendrils
+    ctx.strokeStyle='rgba(140,30,130,0.5)'; ctx.lineWidth=2;
+    for(let i=0;i<4;i++){ const a=-0.6+i*0.4; ctx.beginPath(); ctx.moveTo(0,-30); ctx.lineTo(Math.cos(a)*22, -30+Math.sin(a)*20+Math.sin(h.eyePhase*3+i)*4); ctx.stroke(); }
+    ctx.shadowBlur=0; ctx.restore();
+  }
+  function drawEyes(h){
+    const sx=h.x-cam.x, sy=h.y-cam.y;
+    if(sx<-60||sx>W+60||sy<-60||sy>H+60) return;
+    const d=dist(player.x,player.y,h.x,h.y);
+    const vis = h.state==='chase' ? 1 : clamp(1-d/520,0,1);   // eyes seen from further when it hunts
+    if(vis<=0.02) return;
+    const fl=0.6+0.4*Math.sin(h.eyePhase*7);
+    ctx.save(); ctx.globalAlpha=vis*fl; ctx.shadowBlur=18; ctx.shadowColor='#ff2b6b'; ctx.fillStyle='#ff3b5e';
+    ctx.beginPath(); ctx.arc(sx-5,sy-32,3.2,0,7); ctx.arc(sx+5,sy-32,3.2,0,7); ctx.fill();
+    ctx.restore();
+  }
+  function punch(x,y,r,a){ const g=lctx.createRadialGradient(x,y,0,x,y,r); g.addColorStop(0,`rgba(0,0,0,${a})`); g.addColorStop(1,'rgba(0,0,0,0)'); lctx.fillStyle=g; lctx.beginPath(); lctx.arc(x,y,r,0,7); lctx.fill(); }
+
+  /* ---------------- loop ---------------- */
+  let raf=null, heartsCleansed=0;
+  function loop(ts){
+    const dt=Math.min(0.05,(ts-t0)/1000)||0; t0=ts;
+    if(state==='play'){ update(dt); if(state==='play') render(); }
+    raf=requestAnimationFrame(loop);
+  }
+
+  function start(){
+    Sound.init(); heartsCleansed=0; $('heartN').textContent=0;
+    build(); state='play';
+    $('menu').classList.add('hidden'); $('end').classList.add('hidden');
+    say('find the four hearts. do not let it touch you.');
+    t0=performance.now(); if(!raf) raf=requestAnimationFrame(loop);
+  }
+  function die(kind){
+    if(state!=='play') return; state='dead';
+    Sound.stinger(); jumpscare();
+    setTimeout(()=>{ $('end').className='screen dead'; $('endTitle').textContent='ROTTED';
+      $('endMsg').textContent = kind==='mind'
+        ? 'Your mind came apart in the dark. You stopped running, and the forest folded you in.'
+        : 'The Hollow took you. They will not find what is left. Hearts cleansed: '+heartsCleansed+' / 4.';
+    }, 700);
+  }
+  function win(){
+    if(state!=='play') return; state='win'; Sound.chime();
+    $('end').className='screen win'; $('endTitle').textContent='DAWN';
+    $('endMsg').textContent='All four hearts wake at once. Light pours through the canopy, and the Hollow shrieks and is gone. The forest is yours again — for now.';
+  }
+  function jumpscare(){
+    const j=$('jump'); j.innerHTML=`<svg viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="50" fill="#0a0410"/>
+      <circle cx="34" cy="42" r="10" fill="#ff2b3e"/><circle cx="66" cy="42" r="10" fill="#ff2b3e"/>
+      <circle cx="34" cy="42" r="4" fill="#000"/><circle cx="66" cy="42" r="4" fill="#000"/>
+      <path d="M30 66 Q50 86 70 66 Q60 78 50 76 Q40 78 30 66Z" fill="#7a1530" stroke="#ff2b6b" stroke-width="1.5"/>
+      <path d="M24 64 L30 70 M76 64 L70 70 M40 62 L42 72 M60 62 L58 72 M50 60 L50 74" stroke="#ff2b6b" stroke-width="2"/>
+    </svg>`;
+    j.classList.add('on'); $('blink').classList.add('on');
+    setTimeout(()=>{ j.classList.remove('on'); $('blink').classList.remove('on'); },620);
+  }
+
+  $('startBtn').addEventListener('click',start);
+  $('againBtn').addEventListener('click',start);
+  $('mute').addEventListener('click',()=>{ Sound.init(); const on=Sound.toggle(); $('mute').textContent=on?'🔊':'🔇'; });
+  // keep ground/menu canvas from being plain — draw a faint idle frame
+  resize();
+</script>
+</body>
+</html>

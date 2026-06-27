@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Papergrounds</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink:    #555560;   /* Rodger — graphite pencil */
+    --bella:  #3f74c4;   /* Bella — blue */
+    --kale:   #3f9d5a;   /* Kale — green */
+    --enemy:  #15151c;   /* black ink */
+    --red:    #c0392b;   /* red ink */
+    --boss:   #7a1530;   /* ink boss */
+    --bluink: #2e6f9e;   /* blue ink */
+    --grnink: #5a8f3a;   /* green ink */
+    --paper:  #f3efe2;
+    --atk:    #d4663a;
+    --bonk:   #c98a2b;
+    --triple: #b05fd6;
+    --heal:   #3fa055;
+    --blue:   #3f74c4;
+    --confuse:#8a5bd6;
+    --wet:    #3a86b5;
+    --shield: #7a8a99;
+    --medkit: #cf5b7a;
+    --bleed:  #a33b3b;
+    --lord:   #4b2a63;
+    --fly:    #5f93b0;
+    --purple: #8e44ad;
+    --poison: #7aa53a;
+    --dodge:  #8aa0b5;
+    --emily:  #e070a8;
+    --jayden: #6f6a52;
+    --sweep:  #e070a8;
+    --rally:  #e0913a;
+  }
+  html, body { margin: 0; padding: 0; min-height: 100%; color: var(--ink);
+    font-family: "Patrick Hand", "Comic Sans MS", cursive; user-select: none; }
+  body {
+    background-color: var(--paper);
+    background-image:
+      linear-gradient(rgba(80,110,160,0.10) 1px, transparent 1px),
+      linear-gradient(90deg, transparent 58px, rgba(200,90,90,0.25) 58px, rgba(200,90,90,0.25) 60px, transparent 60px),
+      radial-gradient(circle at 18% 30%, rgba(0,0,0,0.025), transparent 9%),
+      radial-gradient(circle at 82% 65%, rgba(0,0,0,0.03), transparent 11%);
+    background-size: 100% 32px, 100% 100%, 100% 100%, 100% 100%;
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 12px 12px 18px; box-sizing: border-box;
+    transition: filter 1.2s ease;
+  }
+  body.ashen { filter: grayscale(0.45) brightness(0.94); }
+  .sketch { background: rgba(255,255,255,0.4); border: 2.5px solid var(--ink);
+    border-radius: 14px 10px 16px 8px / 8px 16px 10px 14px; box-shadow: 2px 3px 0 rgba(43,43,51,0.25); }
+
+  #ashOverlay { position: fixed; inset: 0; background: rgba(70,72,80,0.16); pointer-events: none; z-index: 1; opacity: 0; transition: opacity 1.2s ease; }
+  #ashOverlay.on { opacity: 1; }
+  #ashLayer { position: fixed; inset: 0; pointer-events: none; z-index: 2; overflow: hidden; }
+  .ash-flake { position: absolute; top: -14px; border-radius: 50%; background: rgba(120,120,128,0.55); animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(112vh) translateX(var(--dx,0)); opacity: 0.1; } }
+
+  .hud { display: flex; align-items: center; gap: 16px; padding: 6px 18px; margin: 2px 0 0;
+    font-family: "Caveat", cursive; font-size: 22px; background: rgba(255,255,255,0.55); flex-wrap: wrap; justify-content: center; }
+  .hud b { font-size: 26px; }
+  .tag-stage { color: var(--boss); }
+  .tag-kill  { color: var(--atk); }
+  .tag-diff.easy { color: var(--heal); } .tag-diff.mid { color: var(--bonk); } .tag-diff.hard { color: var(--red); }
+
+  .arena { display: flex; gap: 40px; align-items: flex-end; justify-content: center; flex-wrap: wrap;
+    width: 100%; max-width: 1080px; flex: 1 1 auto; padding: 6px 0 4px; }
+  .formation { position: relative; width: 330px; height: 380px; }
+  .vs-mid { font-family: "Caveat", cursive; font-size: 34px; color: #b3ac9a; align-self: center; }
+
+  .fighter { position: absolute; width: 150px; text-align: center; transition: opacity .4s; }
+  .fighter .who { font-family: "Caveat", cursive; font-weight: 700; font-size: 25px; margin-bottom: 2px; }
+  .fighter.ally.r  .who { color: var(--ink); }
+  .fighter.ally.b  .who { color: var(--bella); }
+  .fighter.ally.k  .who { color: var(--kale); }
+  .fighter.ally.e  .who { color: var(--emily); }
+  .fighter.ally.j  .who { color: var(--jayden); }
+  .fighter.enemy .who { color: var(--enemy); }
+  .fighter.enemy.red .who    { color: var(--red); }
+  .fighter.enemy.blue .who   { color: var(--bluink); }
+  .fighter.enemy.green .who  { color: var(--grnink); }
+  .fighter.enemy.flying .who { color: var(--fly); }
+  .fighter.enemy.purple .who { color: var(--purple); }
+  .fighter.enemy.boss .who   { color: var(--boss); font-size: 27px; }
+  .fighter.enemy.lord .who   { color: var(--lord); font-size: 27px; }
+  .fighter.active .who { text-decoration: underline wavy; }
+  .fighter.active .sprite { filter: drop-shadow(0 0 8px var(--heal)); }
+  .fighter.targetable { cursor: pointer; outline: 3px dashed var(--atk); outline-offset: 5px; border-radius: 14px; animation: targPulse .85s ease-in-out infinite; }
+  .fighter.targetable.tg-heal { outline-color: var(--heal); }
+  @keyframes targPulse { 0%,100%{outline-offset:5px;} 50%{outline-offset:10px;} }
+  .fighter.dead { opacity: .3; filter: grayscale(.6); pointer-events: none; }
+  .boss-cap { font-family: "Caveat", cursive; font-size: 16px; color: var(--boss); margin-top: 2px; }
+
+  .sprite { width: 130px; height: 130px; display: block; margin: 0 auto; animation: floaty 3.4s ease-in-out infinite; }
+  .sprite.big  { width: 162px; height: 162px; }
+  .sprite.boss { width: 200px; height: 200px; }
+  @keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+  .sprite.hit { animation: shake .36s; }
+  @keyframes shake { 0%,100%{transform:translate(0,0) rotate(0);} 25%{transform:translate(-9px,5px) rotate(-5deg);} 50%{transform:translate(9px,-5px) rotate(5deg);} 75%{transform:translate(-5px,3px) rotate(-2deg);} }
+  .sprite.punch-r { animation: lungeR .56s ease; }
+  .sprite.punch-l { animation: lungeL .56s ease; }
+  @keyframes lungeR { 0%{transform:translateX(0);} 42%{transform:translateX(34px) rotate(8deg) scale(1.05);} 100%{transform:translateX(0);} }
+  @keyframes lungeL { 0%{transform:translateX(0);} 42%{transform:translateX(-34px) rotate(-8deg) scale(1.05);} 100%{transform:translateX(0);} }
+  .sprite.heal { animation: healBounce .72s ease; filter: drop-shadow(0 0 9px rgba(74,170,90,0.85)); }
+  @keyframes healBounce { 0%{transform:translateY(0) scale(1);} 30%{transform:translateY(-18px) scale(1.1);} 60%{transform:translateY(0);} 80%{transform:translateY(-7px);} 100%{transform:translateY(0);} }
+  .sprite.die { animation: melt .6s ease forwards; }
+  @keyframes melt { 0%{transform:translateY(0) scale(1); opacity:1;} 60%{transform:translateY(16px) scaleX(1.25) scaleY(.55); opacity:.8;} 100%{transform:translateY(32px) scaleX(1.5) scaleY(.12); opacity:0;} }
+  .drip { animation: dripFall 2.3s ease-in infinite; transform-box: fill-box; }
+  .drip.d2 { animation-delay: .85s; } .drip.d3 { animation-delay: 1.5s; }
+  @keyframes dripFall { 0%{transform:translateY(0) scaleY(.6); opacity:0;} 20%{opacity:.85;} 100%{transform:translateY(15px) scaleY(1.3); opacity:0;} }
+
+  .hpbar { width: 130px; height: 20px; margin: 5px auto 0; position: relative; overflow: hidden; border-radius: 11px 7px 11px 7px / 7px 11px 7px 11px; }
+  .hpfill { position: absolute; top:0; left:0; bottom:0; width:100%; transition: width .35s ease; }
+  .hptext { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: "Patrick Hand", cursive; font-size: 12px; color: #fff; mix-blend-mode: difference; }
+  .status { position: absolute; top: 24px; right: 0; z-index: 5; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+  .effect { display: inline-flex; align-items: center; gap: 3px; font-family: "Patrick Hand", cursive; font-size: 12px; line-height: 1;
+    padding: 3px 6px; background: #fbf8ef; border: 2px solid var(--ink); color: var(--ink);
+    border-radius: 9px 5px 9px 5px / 5px 9px 5px 9px; transform: rotate(4deg); box-shadow: 1px 2px 0 rgba(43,43,51,0.25); }
+  .effect.cf { border-color: var(--confuse); color: var(--confuse); }
+  .effect.wt { border-color: var(--wet); color: var(--wet); }
+  .effect.bl { border-color: var(--bleed); color: var(--bleed); }
+  .effect.po { border-color: var(--poison); color: var(--poison); }
+  .effect.dg { border-color: var(--dodge); color: var(--dodge); }
+  .effect.at { border-color: var(--rally); color: var(--rally); }
+  .effect.sh { border-color: var(--shield); color: var(--shield); }
+  .effect .ic { font-size: 14px; animation: dizzy 1.1s linear infinite; }
+  @keyframes dizzy { to { transform: rotate(360deg); } }
+  .think { position: absolute; top: -2px; left: 50%; transform: translateX(-50%); z-index: 6;
+    background: #fbf8ef; border: 2px solid var(--enemy); border-radius: 12px 8px 12px 8px / 8px 12px 8px 12px;
+    padding: 2px 9px; font-family: "Caveat", cursive; font-size: 20px; box-shadow: 1px 2px 0 rgba(43,43,51,0.25); animation: thinkBob 1s ease-in-out infinite; }
+  @keyframes thinkBob { 0%,100%{transform:translateX(-50%) translateY(0);} 50%{transform:translateX(-50%) translateY(-5px);} }
+  .float { position: absolute; font-family: "Caveat", cursive; font-weight: 700; font-size: 32px; pointer-events: none; opacity: 1; transition: transform .9s ease, opacity .9s ease; z-index: 7; }
+
+  .bottombar { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; max-width: 1040px; }
+  .turn-label { font-family: "Caveat", cursive; font-size: 26px; color: var(--ink); min-height: 30px; text-align: center; }
+  .bottomrow { display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap; }
+  .levelbox { padding: 8px 16px; font-family: "Caveat", cursive; font-size: 22px; text-align: center; display: flex; flex-direction: column; gap: 4px; align-items: center; }
+  .levelbox .lv { color: var(--blue); } .levelbox .lv b { font-size: 26px; }
+  .xpbar { width: 160px; height: 15px; position: relative; overflow: hidden; border: 2px solid var(--heal); border-radius: 10px 6px 10px 6px / 6px 10px 6px 10px; }
+  .xpfill { position: absolute; inset: 0; width: 0%; transition: width .4s ease; background: var(--heal); }
+  .xptext { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: "Patrick Hand", cursive; font-size: 11px; color: #1c3a25; font-weight: 700; }
+
+  .actions { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+  .actions.locked { pointer-events: none; opacity: .5; }
+  .btn { padding: 12px 20px; min-width: 116px; text-align: center; cursor: pointer; font-family: "Caveat", cursive; font-weight: 700; font-size: 25px;
+    transition: transform .08s, box-shadow .08s; background: rgba(255,255,255,0.4); border: 2.5px solid var(--ink);
+    border-radius: 14px 10px 16px 8px / 8px 16px 10px 14px; box-shadow: 2px 3px 0 rgba(43,43,51,0.25); }
+  .btn small { display: block; font-family: "Patrick Hand", cursive; font-weight: 400; font-size: 11px; color: #7a766a; margin-top: 2px; }
+  .btn.btn-punch   { color: var(--atk);    border-color: var(--atk);    background: rgba(212,102,58,0.10); }
+  .btn.btn-bonk    { color: var(--bonk);   border-color: var(--bonk);   background: rgba(201,138,43,0.10); }
+  .btn.btn-triple  { color: var(--triple); border-color: var(--triple); background: rgba(176,95,214,0.10); }
+  .btn.btn-soggy   { color: var(--wet);    border-color: var(--wet);    background: rgba(58,134,181,0.10); }
+  .btn.btn-toughen { color: var(--shield); border-color: var(--shield); background: rgba(122,138,153,0.12); }
+  .btn.btn-recover { color: var(--heal);   border-color: var(--heal);   background: rgba(63,160,85,0.10); }
+  .btn.btn-medkit  { color: var(--medkit); border-color: var(--medkit); background: rgba(207,91,122,0.10); }
+  .btn.btn-sawblade{ color: var(--bleed);  border-color: var(--bleed);  background: rgba(163,59,59,0.10); }
+  .btn.btn-sweep   { color: var(--emily);  border-color: var(--emily);  background: rgba(224,112,168,0.10); }
+  .btn.btn-mend    { color: var(--heal);   border-color: var(--heal);   background: rgba(63,160,85,0.10); }
+  .btn.btn-rally   { color: var(--rally);  border-color: var(--rally);  background: rgba(224,145,58,0.10); }
+  .btn.chosen { transform: translate(-2px,-2px); box-shadow: 5px 6px 0 rgba(43,43,51,0.35); outline: 2px dashed currentColor; outline-offset: 3px; }
+  .btn:hover { transform: translate(-2px,-2px) rotate(-1deg); box-shadow: 4px 5px 0 rgba(43,43,51,0.3); }
+  .btn:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 rgba(43,43,51,0.3); }
+  .btn.disabled { opacity: 0.4; pointer-events: none; }
+
+  .lvlup { position: fixed; top: 22%; left: 50%; transform: translate(-50%,0); pointer-events: none; font-family: "Caveat", cursive; font-weight: 700;
+    font-size: 50px; color: #2e8b3d; opacity: 0; z-index: 40; text-shadow: 2px 2px 0 rgba(0,0,0,0.15); text-align: center; }
+  .lvlup.show { animation: lvlPop 1.5s ease forwards; }
+  @keyframes lvlPop { 0%{opacity:0; transform:translate(-50%,20px) scale(.6) rotate(-6deg);} 22%{opacity:1; transform:translate(-50%,0) scale(1.1) rotate(-3deg);} 72%{opacity:1; transform:translate(-50%,-10px) scale(1) rotate(-3deg);} 100%{opacity:0; transform:translate(-50%,-40px) scale(1) rotate(-3deg);} }
+
+  .back { position: fixed; top: 12px; right: 12px; padding: 6px 14px; text-decoration: none; color: var(--ink); font-family: "Caveat", cursive; font-weight: 700; font-size: 20px; z-index: 8; }
+
+  .admin-btn { position: fixed; top: 12px; left: 12px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 18px; z-index: 9; opacity: .6; transition: opacity .15s, transform .1s; }
+  .admin-btn:hover { opacity: 1; transform: rotate(40deg); }
+  .admin-panel { position: fixed; top: 54px; left: 12px; z-index: 9; display: none; flex-direction: column; gap: 6px; padding: 10px; min-width: 150px; background: rgba(255,255,255,0.92); }
+  .admin-panel.open { display: flex; }
+  .admin-title { font-family: "Caveat", cursive; font-weight: 700; font-size: 20px; color: var(--boss); text-align: center; }
+  .admin-act { cursor: pointer; font-family: "Patrick Hand", cursive; font-size: 14px; padding: 6px 10px; border: 2px dashed var(--ink);
+    border-radius: 9px 5px 9px 5px / 5px 9px 5px 9px; color: var(--ink); }
+  .admin-act:hover { background: rgba(122,21,48,0.08); border-style: solid; border-color: var(--boss); color: var(--boss); }
+
+  .re-order { margin-bottom: 6px; }
+  .re-sub { font-family: "Patrick Hand", cursive; font-size: 13px; color: #9a8f80; margin-bottom: 4px; }
+  .re-pos { display: flex; align-items: center; gap: 10px; padding: 3px 0; }
+  .re-posname { font-family: "Caveat", cursive; font-weight: 700; font-size: 20px; min-width: 120px; }
+  .re-slotlabel { font-family: "Patrick Hand", cursive; font-size: 12px; color: #7a766a; min-width: 44px; }
+  .re-arrows { margin-left: auto; display: flex; gap: 6px; }
+  .re-up, .re-down { cursor: pointer; font-size: 18px; width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;
+    border: 2px solid var(--ink); border-radius: 7px; }
+  .re-up:hover, .re-down:hover { background: rgba(63,160,85,0.14); border-color: var(--heal); color: var(--heal); }
+  .re-cap { font-family: "Patrick Hand", cursive; font-size: 12px; color: #9a8f80; }
+
+  .title-screen, .cutscene { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    background-color: var(--paper);
+    background-image: linear-gradient(rgba(80,110,160,0.10) 1px, transparent 1px), linear-gradient(90deg, transparent 58px, rgba(200,90,90,0.25) 58px, rgba(200,90,90,0.25) 60px, transparent 60px);
+    background-size: 100% 32px, 100% 100%; transition: opacity .5s ease, transform .5s ease; padding: 20px; overflow-y: auto; }
+  .title-screen.gone { opacity: 0; transform: scale(1.04); pointer-events: none; }
+  .cutscene { display: none; }
+  .cutscene.show { display: flex; opacity: 1; transform: none; }
+  .game-title { font-family: "Caveat", cursive; font-weight: 700; font-size: clamp(56px,13vw,128px); margin: 0; letter-spacing: 2px; transform: rotate(-3deg); line-height: .95; color: var(--ink);
+    text-shadow: 3px 3px 0 rgba(63,116,196,0.25), 6px 6px 0 rgba(212,102,58,0.15); animation: titleBob 3s ease-in-out infinite; }
+  @keyframes titleBob { 0%,100%{transform:rotate(-3deg) translateY(0);} 50%{transform:rotate(-3deg) translateY(-8px);} }
+  .title-sub { font-family: "Caveat", cursive; font-size: clamp(18px,3vw,26px); color: #7a766a; transform: rotate(-1deg); margin-bottom: 6px; }
+  .title-fighters { display: flex; align-items: center; gap: 24px; margin: 4px 0 10px; }
+  .title-fighters .sprite { width: 80px; height: 80px; }
+  .title-fighters .vs { font-family: "Caveat", cursive; font-weight: 700; font-size: 34px; color: var(--atk); transform: rotate(-6deg); }
+  .diff-pick { display: flex; gap: 14px; margin: 6px 0 14px; flex-wrap: wrap; justify-content: center; }
+  .diff-btn { cursor: pointer; padding: 8px 18px; min-width: 96px; text-align: center; font-family: "Caveat", cursive; font-weight: 700; font-size: 24px; color: var(--ink);
+    background: rgba(255,255,255,0.4); border: 2.5px solid var(--ink); border-radius: 12px 8px 14px 7px / 7px 14px 8px 12px; box-shadow: 2px 3px 0 rgba(43,43,51,0.2); transition: transform .08s, box-shadow .08s; }
+  .diff-btn small { display: block; font-family: "Patrick Hand", cursive; font-weight: 400; font-size: 11px; color: #7a766a; margin-top: 1px; }
+  .diff-btn:hover { transform: translate(-1px,-1px); }
+  .diff-btn[data-diff="easy"].on { color: var(--heal); border-color: var(--heal); background: rgba(63,160,85,0.14); }
+  .diff-btn[data-diff="mid"].on  { color: var(--bonk); border-color: var(--bonk); background: rgba(201,138,43,0.14); }
+  .diff-btn[data-diff="hard"].on { color: var(--red);  border-color: var(--red);  background: rgba(192,57,43,0.14); }
+  .act-btn.on { color: var(--blue); border-color: var(--blue); background: rgba(63,116,196,0.14); }
+  .diff-btn.on { transform: translate(-2px,-2px); box-shadow: 4px 5px 0 rgba(43,43,51,0.3); }
+  .start-btn { font-size: 38px; padding: 12px 52px; color: var(--heal); border-color: var(--heal); background: rgba(63,160,85,0.12); animation: startPulse 1.4s ease-in-out infinite; }
+  @keyframes startPulse { 0%,100%{transform:translate(0,0) rotate(0); box-shadow:2px 3px 0 rgba(43,43,51,0.25);} 50%{transform:translate(-2px,-2px) rotate(-1deg); box-shadow:5px 6px 0 rgba(43,43,51,0.3);} }
+  .title-hint { margin-top: 12px; font-family: "Patrick Hand", cursive; font-size: 15px; color: #9a8f80; letter-spacing: 1px; }
+
+  .cut-card { max-width: 720px; width: 92%; padding: 24px 30px 22px; text-align: center; background: rgba(255,255,255,0.7); }
+  .cut-title { font-family: "Caveat", cursive; font-weight: 700; font-size: clamp(38px,8vw,64px); margin: 0 0 6px; transform: rotate(-2deg); color: var(--ink); }
+  .cut-text { font-family: "Patrick Hand", cursive; font-size: 19px; line-height: 1.5; color: #4a463c; margin: 8px 0 14px; }
+  .cut-sprites { display: flex; gap: 18px; align-items: flex-end; justify-content: center; margin: 4px 0 10px; }
+  .cut-sprites .sprite { width: 96px; height: 96px; }
+  .cut-btn { display: inline-block; font-size: 28px; padding: 9px 30px; color: var(--heal); border-color: var(--heal); background: rgba(63,160,85,0.12); cursor: pointer; }
+  .map { width: 100%; max-width: 600px; margin: 4px auto 6px; }
+  .scene { display: block; width: 100%; max-width: 470px; margin: 6px auto 2px; }
+  .cut-cap { font-family: "Patrick Hand", cursive; font-size: 18px; line-height: 1.45; color: #4a463c; margin: 6px auto 14px; max-width: 480px; }
+  .cut-cap b { font-weight: 400; }
+  .map-hint { font-family: "Patrick Hand", cursive; font-size: 15px; color: #9a8f80; margin: 2px 0 10px; }
+  .map-hint b { color: var(--triple); }
+
+  .rearrange { display: none; text-align: left; margin-top: 6px; border-top: 2px dashed rgba(43,43,51,0.25); padding-top: 10px; }
+  .rearrange.open { display: block; }
+  .re-h { font-family: "Caveat", cursive; font-size: 28px; margin: 0 0 8px; text-align: center; }
+  .re-ally { padding: 6px 0; border-bottom: 1px dashed rgba(43,43,51,0.15); }
+  .re-name { font-family: "Caveat", cursive; font-weight: 700; font-size: 22px; }
+  .re-slots { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0; }
+  .re-chip { font-family: "Patrick Hand", cursive; font-size: 13px; padding: 3px 9px; border: 2px solid currentColor; border-radius: 8px; color: var(--ink); }
+  .re-chip.btn-punch{color:var(--atk);} .re-chip.btn-bonk{color:var(--bonk);} .re-chip.btn-triple{color:var(--triple);}
+  .re-chip.btn-soggy{color:var(--wet);} .re-chip.btn-toughen{color:var(--shield);} .re-chip.btn-recover{color:var(--heal);}
+  .re-chip.btn-medkit{color:var(--medkit);} .re-chip.btn-sawblade{color:var(--bleed);}
+  .re-chip.btn-sweep{color:var(--emily);} .re-chip.btn-mend{color:var(--heal);} .re-chip.btn-rally{color:var(--rally);}
+  .re-learn { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+  .re-toggle { cursor: pointer; font-family: "Patrick Hand", cursive; font-size: 14px; padding: 4px 11px; border: 2px dashed #9a8f80; border-radius: 9px; color: #7a766a; }
+  .re-toggle.on { border-style: solid; color: #1c3a25; background: rgba(63,160,85,0.12); border-color: var(--heal); }
+</style>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <filter id="pencil" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.06" numOctaves="3" seed="7" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs></svg>
+
+  <div id="ashOverlay"></div>
+  <div id="ashLayer"></div>
+  <a href="index.html" class="back sketch">← back</a>
+  <div class="admin-btn sketch" id="adminBtn">⚙</div>
+  <div class="admin-panel sketch" id="adminPanel">
+    <div class="admin-title">admin</div>
+    <div class="admin-act" id="admSkip">⏭ skip stage</div>
+    <div class="admin-act" id="admKill">💀 kill enemy</div>
+    <div class="admin-act" id="admHeal">❤ full heal</div>
+    <div class="admin-act" id="admLearn">📖 learn all moves</div>
+  </div>
+
+  <div class="title-screen" id="titleScreen">
+    <h1 class="game-title">Papergrounds</h1>
+    <div class="title-sub">~ rescue Kale · then save Paperland ~</div>
+    <div class="title-fighters" id="titlePreview"></div>
+    <div class="diff-pick" id="actPick">
+      <div class="diff-btn act-btn" data-act="1">Act 1<small>rescue Kale</small></div>
+      <div class="diff-btn act-btn" data-act="2">Act 2<small>the path · full party</small></div>
+      <div class="diff-btn act-btn" data-act="3">Act 3<small>solo Kale · the Lord</small></div>
+    </div>
+    <div class="diff-pick" id="diffPick">
+      <div class="diff-btn" data-diff="easy">easy<small>same damage</small></div>
+      <div class="diff-btn" data-diff="mid">mid<small>tougher inks</small></div>
+      <div class="diff-btn" data-diff="hard">hard<small>1.5× hp &amp; dmg</small></div>
+    </div>
+    <div class="btn sketch start-btn" id="btnStart">start</div>
+    <div class="title-hint">pick an action, then click a target · learn enemy abilities · press T on the map</div>
+  </div>
+
+  <div class="cutscene" id="cutscene">
+    <div class="cut-card sketch"><div class="cut-body" id="cutBody"></div><div class="btn sketch cut-btn" id="cutBtn"></div></div>
+  </div>
+
+  <div class="cutscene" id="mapScreen">
+    <div class="cut-card sketch" style="max-width:760px">
+      <h2 class="cut-title" id="mapTitle"></h2>
+      <p class="cut-text" id="mapText"></p>
+      <div class="map" id="mapGfx"></div>
+      <div class="map-hint" id="mapHint"></div>
+      <div class="btn sketch cut-btn" id="mapNext">next →</div>
+      <div class="rearrange" id="rearrange"></div>
+    </div>
+  </div>
+
+  <div class="hud sketch">
+    <span class="tag-stage">▸ <b id="stageLabel">Stage 1 / 5</b></span>
+    <span class="tag-diff" id="diffTag">mid</span>
+    <span class="tag-kill">slain <b id="kills">0</b></span>
+  </div>
+
+  <div class="arena">
+    <div class="formation" id="allies"></div>
+    <div class="vs-mid">⚔</div>
+    <div class="formation" id="enemies"></div>
+  </div>
+
+  <div class="bottombar">
+    <div class="turn-label" id="turnLabel"></div>
+    <div class="bottomrow">
+      <div class="levelbox sketch">
+        <span class="lv">Lv <b id="lvl">1</b></span>
+        <div class="xpbar"><div class="xpfill" id="xpFill"></div><div class="xptext" id="xpText"></div></div>
+      </div>
+      <div class="actions" id="actions"></div>
+    </div>
+  </div>
+  <div class="lvlup" id="lvlup"></div>
+
+<script>
+  const el = id => document.getElementById(id);
+  const rint = (a,b) => Math.floor(Math.random()*(b-a+1))+a;
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  // ---------- sprites ----------
+  function rodgerSVG() { return `
+    <svg class="sprite" viewBox="0 0 100 100" fill="none" stroke="var(--ink)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+      <g filter="url(#pencil)" opacity="0.92">
+        <path d="M28 94 L28 56 Q28 40 50 40 Q72 40 72 56 L72 94"/>
+        <path d="M30 93 L30 56 Q30 42 50 42 Q70 42 70 56 L70 93" stroke-width="1.4" opacity="0.6"/>
+        <circle cx="50" cy="24" r="16" fill="#fbf8ef"/>
+        <text x="50" y="30" text-anchor="middle" font-family="'Patrick Hand',cursive" font-size="19" fill="var(--ink)" stroke="none">:)</text>
+      </g></svg>`; }
+  function bellaSVG() { return `
+    <svg class="sprite" viewBox="0 0 100 100" fill="none" stroke="var(--bella)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M28 94 L28 56 Q28 40 50 40 Q72 40 72 56 L72 94"/>
+      <circle cx="50" cy="24" r="16" fill="#eef4ff"/>
+      <text x="50" y="30" text-anchor="middle" font-family="'Patrick Hand',cursive" font-size="17" fill="var(--bella)" stroke="none">&gt;:)</text></svg>`; }
+  function kaleSVG() { return `
+    <svg class="sprite" viewBox="0 0 100 100" fill="none" stroke="var(--kale)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M50 40 L26 92 L74 92 Z" fill="rgba(63,157,90,0.10)"/>
+      <circle cx="50" cy="26" r="14" fill="#eef9f0"/>
+      <text x="50" y="31" text-anchor="middle" font-family="'Patrick Hand',cursive" font-size="16" fill="var(--kale)" stroke="none">:)</text></svg>`; }
+  function emilySVG() { return `
+    <svg class="sprite" viewBox="0 0 100 100" fill="none" stroke="var(--emily)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M28 94 L28 56 Q28 40 50 40 Q72 40 72 56 L72 94"/>
+      <circle cx="50" cy="24" r="16" fill="#fdeef6"/>
+      <text x="50" y="30" text-anchor="middle" font-family="'Patrick Hand',cursive" font-size="17" fill="var(--emily)" stroke="none">:]</text></svg>`; }
+  function jaydenSVG() { return `
+    <svg class="sprite" viewBox="0 0 100 100" fill="none" stroke="var(--jayden)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+      <g filter="url(#pencil)" opacity="0.92">
+        <rect x="28" y="42" width="44" height="52" rx="5" fill="#f6f3e8"/>
+        <rect x="31" y="45" width="38" height="46" rx="4" stroke-width="1.4" opacity="0.6"/>
+        <circle cx="50" cy="24" r="16" fill="#f6f3e8"/>
+        <text x="50" y="30" text-anchor="middle" font-family="'Patrick Hand',cursive" font-size="19" fill="var(--jayden)" stroke="none">:)</text>
+      </g></svg>`; }
+  const EColor = {normal:'var(--enemy)',big:'var(--enemy)',red:'var(--red)',blue:'var(--bluink)',green:'var(--grnink)',flying:'var(--fly)',purple:'var(--purple)',boss:'var(--boss)',lord:'var(--lord)'};
+  function inkSVG(type) {
+    const C = EColor[type];
+    const sz = (type==='boss'||type==='lord')?' boss':(type==='big')?' big':'';
+    const face = (type==='boss'||type==='lord')?'&gt;:(':(type==='red')?'&gt;:)':(type==='blue')?':(':(type==='green')?':|':(type==='flying')?':o':(type==='purple')?':S':':)';
+    const head = (type==='red')?'rgba(192,57,43,0.10)':(type==='boss')?'rgba(122,21,48,0.12)':(type==='lord')?'rgba(75,42,99,0.16)':(type==='blue')?'rgba(46,111,158,0.10)':(type==='green')?'rgba(90,143,58,0.10)':(type==='flying')?'rgba(95,147,176,0.10)':(type==='purple')?'rgba(142,68,173,0.10)':'rgba(21,21,28,0.10)';
+    const wings = (type==='flying') ? `<path d="M28 58 Q6 50 10 66 Q20 64 28 70 M72 58 Q94 50 90 66 Q80 64 72 70" fill="rgba(95,147,176,0.15)" stroke="${C}" stroke-width="2.4"/>` : '';
+    const crown = (type==='lord') ? `<path d="M34 12 L39 0 L46 9 L50 -3 L54 9 L61 0 L67 12 Z" fill="#d9a93a" stroke="#b3851f" stroke-width="2" stroke-linejoin="round"/>` : '';
+    return `
+    <svg class="sprite${sz}" viewBox="0 0 100 100" fill="none" stroke="${C}" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">
+      ${wings}
+      <path d="M28 94 L28 56 Q28 40 50 40 Q72 40 72 56 L72 94"/>
+      <circle cx="50" cy="24" r="16" fill="${head}"/>
+      ${crown}
+      <text x="50" y="30" text-anchor="middle" font-family="'Patrick Hand',cursive" font-size="18" fill="${C}" stroke="none">${face}</text>
+      <g stroke="none" fill="${C}">
+        <ellipse class="drip d1" cx="28" cy="92" rx="2.6" ry="4.2"/><ellipse class="drip d2" cx="50" cy="50" rx="2.2" ry="3.6"/><ellipse class="drip d3" cx="72" cy="92" rx="2.6" ry="4.2"/>
+      </g></svg>`; }
+  const AllySVG = { bella:bellaSVG, kale:kaleSVG, emily:emilySVG, jayden:jaydenSVG };
+  const AllyColor = { rodger:'var(--ink)', bella:'var(--bella)', kale:'var(--kale)', emily:'var(--emily)', jayden:'var(--jayden)' };
+  function spriteFor(f) { return f.side==='ally' ? (AllySVG[f.type] ? AllySVG[f.type]() : rodgerSVG()) : inkSVG(f.type); }
+  function fillColor(f) { return f.side==='ally' ? (AllyColor[f.type]||'var(--ink)') : EColor[f.type]; }
+
+  // ---------- abilities ----------
+  const ABIL = {
+    punch:  {name:'punch',   d:'10–20 dmg',             cls:'btn-punch',   target:'foe',    kind:'attack', dmin:10,dmax:20, color:'var(--atk)'},
+    bonk:   {name:'bonk',    d:'4–10 · 50% confuse',    cls:'btn-bonk',    target:'foe',    kind:'attack', dmin:4, dmax:10, confuse:0.5, color:'var(--bonk)'},
+    triple: {name:'triple',  d:'3× 6–11 · misses · cd', cls:'btn-triple',  target:'foe',    kind:'triple', dmin:6, dmax:11, miss:0.4,   color:'var(--triple)'},
+    soggy:  {name:'soggy',   d:'8–14 dmg + wet (DoT)',  cls:'btn-soggy',   target:'foe',    kind:'attack', dmin:8, dmax:14, wet:3,      color:'var(--wet)'},
+    toughen:{name:'toughen', d:'+10 shield (stacks)',   cls:'btn-toughen', target:'friend', kind:'shield', color:'var(--shield)'},
+    recover:{name:'recover', d:'5–20 heal an ally',     cls:'btn-recover', target:'friend', kind:'heal',   hmin:5, hmax:20, color:'var(--heal)'},
+    medkit: {name:'medkit',  d:'heal — better on others',cls:'btn-medkit', target:'friend', kind:'heal',   hmin:10,hmax:18, otherMul:1.6, selfMul:0.6, color:'var(--medkit)'},
+    sawblade:{name:'sawblade',d:'4–9 dmg + long bleed',  cls:'btn-sawblade',target:'foe',   kind:'attack', dmin:4, dmax:9, bleed:5, color:'var(--bleed)'},
+    sweep:  {name:'sweep',   d:'hit ALL enemies',        cls:'btn-sweep',   target:'foe',    kind:'sweep',  dmin:6, dmax:12, color:'var(--sweep)'},
+    mend:   {name:'mend',    d:'heal — better on self',  cls:'btn-mend',    target:'friend', kind:'heal',   hmin:10,hmax:18, selfMul:1.5, otherMul:0.6, color:'var(--heal)'},
+    rally:  {name:'rally',   d:'+50% attack · all allies',cls:'btn-rally',  target:'friend', kind:'rally',  color:'var(--rally)'},
+  };
+  const LEARNABLE = ['soggy','toughen','bonk','rally','medkit'];
+  const CORE = { rodger:['punch','bonk','recover'], bella:['punch','triple','recover'], kale:['recover','medkit','sawblade'],
+                 emily:['bonk','sweep'], jayden:['punch','toughen','mend'] };
+  const WETDMG = 4, BLEEDDMG = 2, SHIELD_AMT = 10, MAX_SLOTS = 4;
+
+  // ---------- state ----------
+  let allies, enemies, act, stage, phase, activeAlly, pendingAllies, pendingMove, targeting;
+  let level, xp, xpNeeded, kills, roundNo, bellaRecruited, emilyRecruited, jaydenRecruited, over, busy;
+  let seen, learned, ashen, ashTimer;
+  let diff = 'mid', startAct = 1;
+  const DIFF = { easy:{hp:1, dmg:1}, mid:{hp:1.25, dmg:1.2}, hard:{hp:1.5, dmg:1.5} };
+
+  // ---------- factories ----------
+  function makeAlly(type) {
+    const baseHp = {rodger:100, bella:80, kale:90, emily:85, jayden:160}[type], maxHp = baseHp + (level-1)*15;
+    const name = {rodger:'Rodger', bella:'Bella', kale:'Kale', emily:'Emily', jayden:'Jayden'}[type];
+    return { name, type, side:'ally', maxHp, hp:maxHp,
+             confused:0, wet:0, bleed:0, shield:0, dodge:0, poison:0, poisonDmg:0, atkUp:0, dead:false, lastTriple:-99, loadout: CORE[type].slice() };
+  }
+  const ETYPES = {
+    normal:{hp:36, dmin:6, dmax:11,name:'ink'},
+    big:   {hp:55, dmin:4, dmax:8, name:'big ink', bonk:0.45},
+    red:   {hp:24, dmin:10,dmax:16,name:'red ink'},
+    blue:  {hp:34, dmin:7, dmax:12,name:'blue ink'},
+    green: {hp:42, dmin:6, dmax:10,name:'green ink'},
+    flying:{hp:26, dmin:8, dmax:13,name:'flying ink'},
+    purple:{hp:32, dmin:7, dmax:12,name:'purple ink'},
+    boss:  {hp:200,dmin:12,dmax:22,name:'INK BOSS', bonk:0.35},
+    lord:  {hp:300,dmin:11,dmax:19,name:'INK LORD'},
+  };
+  function makeEnemy(type, ac, st) {
+    const T = ETYPES[type], scale = 1 + ((ac-1)*6 + (st-1))*0.06, bump = Math.floor(((ac-1)*5+st-1)/2), d = DIFF[diff] || DIFF.easy;
+    const isBoss = type==='boss' || type==='lord';
+    const maxHp = Math.round(T.hp * (isBoss ? 1 : scale) * d.hp);
+    return { name:T.name, type, side:'enemy', maxHp, hp:maxHp,
+             dmin:Math.round((T.dmin+bump)*d.dmg), dmax:Math.round((T.dmax+bump)*d.dmg),
+             bonk:T.bonk||0, confused:0, wet:0, bleed:0, shield:0, dodge:0, poison:0, poisonDmg:0, atkUp:0, dead:false };
+  }
+  function stageComp(ac, st) {
+    if (ac===1) {
+      if (st===6) return ['boss'];
+      if (st===1) return ['normal'];
+      const pool=['normal','big','red'], counts={2:2,3:2,4:3,5:3}, k=counts[st]||2, arr=[];
+      for (let i=0;i<k;i++) arr.push(pool[rint(0,pool.length-1)]); return arr;
+    }
+    if (ac===2) {
+      const pool=['normal','red','big','blue','green'], k = st<=2?2:3, arr=[];
+      for (let i=0;i<k;i++) arr.push(pool[rint(0,pool.length-1)]); return arr;
+    }
+    // act 3 — Kale starts alone, so fewer foes; stage 6 = the Ink Lord
+    if (st===6) return ['lord'];
+    const pool=['normal','red','big','blue','green','purple','flying'], k = st<=2?1:2, arr=[];
+    for (let i=0;i<k;i++) arr.push(pool[rint(0,pool.length-1)]); return arr;
+  }
+
+  // ---------- rendering ----------
+  const SLOT = { ally:[{x:165,y:95},{x:5,y:6},{x:5,y:188}], enemy:[{x:15,y:95},{x:165,y:6},{x:165,y:188}] };
+  function renderArena() {
+    const aw = el('allies'), ew = el('enemies'); aw.innerHTML=''; ew.innerHTML='';
+    allies.forEach((f,i)=>{ aw.appendChild(buildFighter(f)); place(f,'ally',i); });
+    enemies.forEach((f,i)=>{ ew.appendChild(buildFighter(f)); place(f,'enemy',i); });
+    updateBars();
+  }
+  function place(f, side, idx) { const s = SLOT[side][idx] || SLOT[side][0]; f.el.style.left = s.x+'px'; f.el.style.top = s.y+'px'; }
+  function buildFighter(f) {
+    const d = document.createElement('div');
+    let cls = 'fighter ' + f.side;
+    if (f.side==='ally')  cls += ' ' + ({rodger:'r', bella:'b', kale:'k', emily:'e', jayden:'j'}[f.type] || 'r');
+    if (f.side==='enemy') cls += ' ' + f.type;
+    d.className = cls;
+    d.innerHTML = `<div class="status"></div><div class="who">${f.name}</div>${spriteFor(f)}
+      <div class="hpbar sketch"><div class="hpfill"></div><div class="hptext"></div></div>
+      ${f.type==='boss' ? '<div class="boss-cap">🔒 has Kale</div>' : ''}`;
+    f.el = d; f.sprite = d.querySelector('.sprite'); f.statusEl = d.querySelector('.status');
+    f.fill = d.querySelector('.hpfill'); f.hptext = d.querySelector('.hptext');
+    d.onclick = () => onFighterClick(f);
+    return d;
+  }
+  function updateBars() {
+    for (const f of allies.concat(enemies)) {
+      if (!f.el) continue;
+      f.fill.style.width = Math.max(0, f.hp/f.maxHp*100) + '%';
+      f.fill.style.background = fillColor(f);
+      f.hptext.textContent = Math.max(0,f.hp) + ' / ' + f.maxHp;
+      f.el.classList.toggle('dead', !!f.dead);
+      let s = '';
+      if (f.confused>0) s += `<div class="effect cf"><span class="ic">😵</span><b>×${f.confused}</b></div>`;
+      if (f.wet>0)      s += `<div class="effect wt">💧<b>×${f.wet}</b></div>`;
+      if (f.bleed>0)    s += `<div class="effect bl">🩸<b>×${f.bleed}</b></div>`;
+      if (f.poison>0)   s += `<div class="effect po">☠<b>×${f.poison}</b></div>`;
+      if (f.dodge>0)    s += `<div class="effect dg">💨<b>×${f.dodge}</b></div>`;
+      if (f.atkUp>0)    s += `<div class="effect at">💪<b>×${f.atkUp}</b></div>`;
+      if (f.shield>0)   s += `<div class="effect sh">🛡<b>${f.shield}</b></div>`;
+      f.statusEl.innerHTML = s;
+    }
+  }
+  function updateHud() {
+    el('stageLabel').textContent = act===1 ? (stage===6?'BOSS FIGHT':('Stage '+stage+' / 5'))
+      : act===2 ? ('Path '+stage+' / 8')
+      : (stage===6?'THE INK LORD':('Act 3 — '+stage+' / 6'));
+    el('diffTag').textContent = diff; el('diffTag').className = 'tag-diff ' + diff;
+    el('kills').textContent = kills;
+    el('lvl').textContent = level;
+    el('xpFill').style.width = (xp/xpNeeded*100) + '%';
+    el('xpText').textContent = xp + ' / ' + xpNeeded + ' xp';
+  }
+
+  // ---------- fx ----------
+  function anim(elm, cls, dur) { if(!elm) return; elm.classList.remove(cls); void elm.offsetWidth; elm.classList.add(cls); setTimeout(()=>elm.classList.remove(cls), dur); }
+  const hit = f => anim(f.sprite, 'hit', 360);
+  function floatNum(f, text, color) {
+    if (!f.el) return;
+    const d = document.createElement('div'); d.className='float'; d.textContent=text; d.style.color=color;
+    d.style.left = (24+rint(0,56))+'px'; d.style.top='62px'; f.el.appendChild(d);
+    requestAnimationFrame(()=>{ d.style.transform='translateY(-50px)'; d.style.opacity='0'; });
+    setTimeout(()=>d.remove(), 920);
+  }
+  function showThink(f) { if(!f.el) return; const d=document.createElement('div'); d.className='think'; d.textContent='💭'; d.dataset.think='1'; f.el.appendChild(d); }
+  function hideThink(f) { if(f.el) f.el.querySelectorAll('[data-think]').forEach(n=>n.remove()); }
+  function popup(text, color) { const p=el('lvlup'); p.textContent=text; p.style.color=color; p.classList.remove('show'); void p.offsetWidth; p.classList.add('show'); }
+
+  // ---------- combat ----------
+  async function performAttack(attacker, target, cfg) {
+    anim(attacker.sprite, attacker.side==='ally'?'punch-r':'punch-l', 560);
+    await sleep(300);
+    if (target.dead) { await sleep(120); return; }
+    if (target.dodge>0) {                      // flying ink is evasive
+      target.dodge--;
+      if (Math.random()<0.7) { floatNum(target, 'dodged! 💨', 'var(--dodge)'); updateBars(); await sleep(320); return; }
+      updateBars();
+    }
+    let miss = Math.random() < (cfg.missChance||0);
+    if (!miss && attacker.confused>0 && Math.random()<0.55) miss = true;
+    if (miss) { floatNum(attacker, 'miss!', '#9a8f80'); await sleep(320); return; }
+    let dmg = rint(cfg.dmgMin, cfg.dmgMax);
+    if (attacker.atkUp>0) dmg = Math.round(dmg * 1.5);     // rally buff
+    const crit = Math.random() < (cfg.crit ?? 0.15); if (crit) dmg *= 2;
+    let blocked = 0;
+    if (target.shield>0) { blocked = Math.min(target.shield, dmg); dmg -= blocked; target.shield -= blocked; }  // shield is a pool (toughen stacks)
+    target.hp -= dmg; hit(target);
+    floatNum(target, (blocked?'🛡 ':'') + '-'+dmg + (crit?'!':''), cfg.color);
+    if (cfg.confuse && Math.random() < cfg.confuse) { target.confused = 3; setTimeout(()=>floatNum(target,'confused!','var(--confuse)'), 200); }
+    if (cfg.wet) { target.wet = cfg.wet; setTimeout(()=>floatNum(target,'💧 soggy!','var(--wet)'), 220); }
+    if (cfg.bleed) { target.bleed = Math.max(target.bleed, cfg.bleed); setTimeout(()=>floatNum(target,'🩸 bleed!','var(--bleed)'), 240); }
+    if (cfg.poison) {                          // stronger but briefer when the target is wet
+      if (target.wet>0) { target.poison = 2; target.poisonDmg = 6; }
+      else              { target.poison = 4; target.poisonDmg = 3; }
+      setTimeout(()=>floatNum(target,'☠ poison!','var(--poison)'), 260);
+    }
+    updateBars();
+    if (target.hp <= 0 && !target.dead) killFighter(target);
+    await sleep(460);
+  }
+  async function shieldMove(actor, target) {
+    anim(actor.sprite, 'heal', 720); await sleep(300);
+    target.shield = Math.min(40, target.shield + SHIELD_AMT);   // stacks, capped
+    floatNum(target, '🛡 +'+SHIELD_AMT, 'var(--shield)');
+    updateBars(); await sleep(320);
+  }
+  async function healMove(actor, target, A) {
+    anim(actor.sprite, 'heal', 720); await sleep(300);
+    const fail = Math.random() < 0.10;
+    let amt = 0;
+    if (!fail) {
+      amt = rint(A.hmin, A.hmax);
+      const mul = (target===actor) ? (A.selfMul ?? 1) : (A.otherMul ?? 1);
+      amt = Math.round(amt * mul);
+    }
+    target.hp = Math.min(target.maxHp, target.hp + amt);
+    floatNum(target, fail?'smudge':'+'+amt, fail?'#9a8f80':A.color);
+    updateBars(); await sleep(420);
+  }
+  function killFighter(f) {
+    f.dead = true; f.hp = 0; anim(f.sprite, 'die', 600);
+    if (f.side==='enemy') awardKill(f);
+    updateBars();
+  }
+  function endTurnStatus(f) {
+    if (f.confused>0) f.confused--;
+    if (f.atkUp>0) f.atkUp--;
+    if (f.wet>0)    { f.wet--;    f.hp -= WETDMG;      floatNum(f, '-'+WETDMG+' 💧', 'var(--wet)');      if (f.hp<=0 && !f.dead) killFighter(f); }
+    if (f.bleed>0)  { f.bleed--;  f.hp -= BLEEDDMG;    floatNum(f, '-'+BLEEDDMG+' 🩸', 'var(--bleed)');   if (f.hp<=0 && !f.dead) killFighter(f); }
+    if (f.poison>0) { f.poison--; f.hp -= f.poisonDmg; floatNum(f, '-'+f.poisonDmg+' ☠', 'var(--poison)'); if (f.hp<=0 && !f.dead) killFighter(f); }
+    updateBars();
+  }
+  function awardKill(e) {
+    kills++; const g = rint(8,18); xp += g;
+    floatNum(e, '+'+g+' xp', '#2e8b3d');
+    while (xp >= xpNeeded) { xp -= xpNeeded; levelUp(); }
+    updateHud();
+  }
+  function levelUp() {
+    level++; for (const a of allies) { a.maxHp += 15; a.hp = a.maxHp; }
+    xpNeeded = Math.round(xpNeeded*1.45); updateBars();
+    popup('LEVEL '+level+'!  +15 HP', '#2e8b3d');
+  }
+
+  // ---------- ability execution ----------
+  function tripleCdLeft(a) { return 3 - (roundNo - a.lastTriple); }
+  function firstLivingFoe(actor) { return (actor.side==='ally'?enemies:allies).find(x=>!x.dead) || null; }
+  async function executeAbility(actor, id, target) {
+    const A = ABIL[id];
+    if (actor.side==='enemy' && LEARNABLE.includes(id)) noteSeen(id);
+    if (A.kind==='attack')      { if (target && !target.dead) await performAttack(actor, target, {dmgMin:A.dmin,dmgMax:A.dmax,confuse:A.confuse,wet:A.wet,bleed:A.bleed,color:A.color}); }
+    else if (A.kind==='triple') { actor.lastTriple = roundNo; for (let i=0;i<3;i++){ let t=(target&&!target.dead)?target:firstLivingFoe(actor); if(!t)break; await performAttack(actor,t,{dmgMin:A.dmin,dmgMax:A.dmax,missChance:A.miss,color:A.color}); } }
+    else if (A.kind==='sweep')  { const foes=(actor.side==='ally'?enemies:allies).filter(x=>!x.dead); for (const t of foes){ if(!t.dead) await performAttack(actor,t,{dmgMin:A.dmin,dmgMax:A.dmax,color:A.color}); } }
+    else if (A.kind==='heal')   { await healMove(actor, target||actor, A); }
+    else if (A.kind==='shield') { await shieldMove(actor, target||actor); }
+    else if (A.kind==='rally')  { anim(actor.sprite,'heal',600); await sleep(280);
+      (actor.side==='ally'?allies:enemies).forEach(f => { if(!f.dead){ f.atkUp = 2; floatNum(f,'💪 rally!','var(--rally)'); } }); updateBars(); await sleep(360); }
+    endTurnStatus(actor);
+  }
+
+  // ---------- enemy AI ----------
+  function pickEnemyTarget() {
+    const living = allies.filter(a=>!a.dead); if (!living.length) return null;
+    const front = allies.find(a=>!a.dead);
+    if (front && Math.random() < 0.6) return front;
+    return living[rint(0,living.length-1)];
+  }
+  async function enemyTurn(e) {
+    showThink(e); await sleep(rint(1000,3000)); hideThink(e);
+    // heal a low ally ink (50% chance) — blue uses medkit, others recover ~50% HP
+    const lowAlly = enemies.filter(a => !a.dead && a!==e && a.hp < a.maxHp*0.5).sort((x,y)=> x.hp/x.maxHp - y.hp/y.maxHp)[0];
+    if (lowAlly && Math.random()<0.5) {
+      anim(e.sprite,'heal',600); await sleep(300);
+      let amt;
+      if (e.type==='blue') { noteSeen('medkit'); amt = Math.round(rint(10,18)*1.6); }
+      else                 { amt = Math.round(lowAlly.maxHp*0.5); }
+      lowAlly.hp = Math.min(lowAlly.maxHp, lowAlly.hp + amt);
+      floatNum(lowAlly, '+'+amt, 'var(--heal)'); floatNum(e, e.type==='blue'?'medkit!':'recover!', 'var(--heal)');
+      updateBars(); endTurnStatus(e); await sleep(420); return;
+    }
+    // self-buff abilities (no target needed)
+    if (e.type==='green' && e.shield<=0 && Math.random()<0.5) { noteSeen('toughen'); await shieldMove(e, e); endTurnStatus(e); return; }
+    if (e.type==='flying' && e.dodge<=0 && Math.random()<0.45) { anim(e.sprite,'heal',500); e.dodge=2; floatNum(e,'💨 dodge!','var(--dodge)'); updateBars(); endTurnStatus(e); await sleep(420); return; }
+    if ((e.type==='red'||e.type==='purple') && e.atkUp<=0 && enemies.filter(a=>!a.dead).length>1 && Math.random()<0.4) { await executeAbility(e,'rally',null); return; }
+    const t = pickEnemyTarget(); if (!t) return;
+    if (e.type==='blue' && Math.random()<0.6) { noteSeen('soggy'); await performAttack(e,t,{dmgMin:e.dmin,dmgMax:e.dmax,wet:3,color:'var(--wet)'}); }
+    else if (e.type==='purple' && Math.random()<0.6) { await performAttack(e,t,{dmgMin:e.dmin,dmgMax:e.dmax,poison:true,color:'var(--poison)'}); }
+    else if (e.type==='lord') {
+      const r = Math.random();
+      if (r<0.28)      { noteSeen('bonk');  await performAttack(e,t,{dmgMin:e.dmin,dmgMax:e.dmax,confuse:0.7,color:'var(--bonk)'}); }
+      else if (r<0.52) { noteSeen('soggy'); await performAttack(e,t,{dmgMin:e.dmin,dmgMax:e.dmax,wet:3,color:'var(--wet)'}); }
+      else             { await performAttack(e,t,{dmgMin:e.dmin+3,dmgMax:e.dmax+5,color:'var(--atk)'}); }
+    }
+    else if (e.bonk && Math.random()<e.bonk) { noteSeen('bonk'); await performAttack(e,t,{dmgMin:Math.max(2,e.dmin-2),dmgMax:Math.max(4,e.dmax-2),confuse:0.7,color:'var(--bonk)'}); }
+    else { await performAttack(e,t,{dmgMin:e.dmin,dmgMax:e.dmax,color:'var(--atk)'}); }
+    endTurnStatus(e);
+  }
+
+  // ---------- learning ----------
+  function noteSeen(id) {
+    seen[id] = (seen[id]||0) + 1;
+    if (seen[id] >= 2 && !learned.has(id)) {
+      learned.add(id);
+      popup('learned ' + ABIL[id].name + '!', ABIL[id].color);
+    }
+  }
+
+  // ---------- targeting (action-first) ----------
+  function clearTargetable() { allies.concat(enemies).forEach(f => f.el && f.el.classList.remove('targetable','tg-heal')); }
+  function markChosenBtn(move) { document.querySelectorAll('.actions .btn').forEach(b => b.classList.toggle('chosen', b.dataset.move===move)); }
+  function chooseAction(move) {
+    if (busy || phase!=='player' || !activeAlly) return;
+    if (move==='triple' && tripleCdLeft(activeAlly)>0) return;
+    if (ABIL[move].kind==='sweep' || ABIL[move].kind==='rally') { runMove(move, null); return; }   // no target needed
+    pendingMove = move; targeting = true;
+    const side = ABIL[move].target==='friend' ? 'ally' : 'enemy';
+    clearTargetable();
+    (side==='ally'?allies:enemies).forEach(f => { if(!f.dead && f.el){ f.el.classList.add('targetable'); if(side==='ally') f.el.classList.add('tg-heal'); } });
+    markChosenBtn(move);
+    el('turnLabel').textContent = (side==='ally')
+      ? activeAlly.name + ': click an ally to ' + (move==='recover'||move==='medkit'||move==='mend'?'heal':'shield')
+      : activeAlly.name + ': click an enemy to ' + move;
+  }
+  function onFighterClick(f) {
+    if (!targeting || busy || f.dead) return;
+    const side = ABIL[pendingMove].target==='friend' ? 'ally' : 'enemy';
+    if (f.side !== side) return;
+    const move = pendingMove; pendingMove = null;
+    runMove(move, f);
+  }
+  async function runMove(move, target) {
+    targeting = false; clearTargetable(); markChosenBtn(null);
+    busy = true; el('actions').classList.add('locked');
+    allies.forEach(a => a.el && a.el.classList.remove('active'));
+    await executeAbility(activeAlly, move, target);
+    await afterAction();
+    if (!over) busy = false;
+  }
+
+  // ---------- turn flow ----------
+  function renderActions(ally) {
+    const box = el('actions'); box.classList.remove('locked'); box.innerHTML='';
+    for (const m of ally.loadout) {
+      const A = ABIL[m]; if (!A) continue;
+      const b = document.createElement('div');
+      const cd = (A.kind==='triple') ? tripleCdLeft(ally) : 0, onCd = cd>0;
+      b.className = 'btn sketch ' + A.cls + (onCd?' disabled':'');
+      b.dataset.move = m;
+      b.innerHTML = `${A.name}<small>${onCd ? ('cooldown '+cd) : A.d}</small>`;
+      if (!onCd) b.onclick = () => chooseAction(m);
+      box.appendChild(b);
+    }
+  }
+  function setupAllyTurn(ally) {
+    activeAlly = ally; pendingMove = null; targeting = false; clearTargetable();
+    allies.forEach(a => a.el && a.el.classList.toggle('active', a===ally && !a.dead));
+    renderActions(ally); busy = false;
+    el('turnLabel').textContent = ally.name + "'s move — pick an action";
+  }
+  function startRound() {
+    phase = 'player'; roundNo++;
+    pendingAllies = allies.filter(a=>!a.dead);
+    if (!pendingAllies.length) return;
+    setupAllyTurn(pendingAllies[0]);
+  }
+  async function afterAction() {
+    if (over) return;
+    await sleep(280);
+    if (enemies.every(e=>e.dead)) { await onStageClear(); return; }
+    pendingAllies.shift();
+    while (pendingAllies.length && pendingAllies[0].dead) pendingAllies.shift();
+    if (pendingAllies.length) { setupAllyTurn(pendingAllies[0]); }
+    else {
+      await runEnemyPhase();
+      if (over) return;
+      if (enemies.every(e=>e.dead)) { await onStageClear(); return; }
+      startRound();
+    }
+  }
+  async function runEnemyPhase() {
+    phase = 'enemy';
+    el('turnLabel').textContent = 'the ink takes its turn...';
+    allies.forEach(a => a.el && a.el.classList.remove('active'));
+    for (const e of enemies) {
+      if (e.dead) continue;
+      await enemyTurn(e);
+      if (allies.every(a=>a.dead)) { await onGameOver(); return; }
+      await sleep(300);
+    }
+  }
+
+  // ---------- progression ----------
+  function healAllies(frac) {
+    for (const a of allies) { a.dead=false; a.wet=0; a.bleed=0; a.confused=0; a.shield=0; a.poison=0; a.dodge=0; a.atkUp=0;
+      a.hp = Math.min(a.maxHp, Math.max(0,a.hp) + Math.round(a.maxHp*frac)); if (a.hp<=0) a.hp = Math.round(a.maxHp*frac); }
+  }
+  function startStage(ac, st) {
+    act = ac; stage = st;
+    healAllies((ac===1&&st===1)||(ac===2&&st===1) ? 1 : 0.5);
+    enemies = stageComp(ac, st).map(t => makeEnemy(t, ac, st));
+    renderArena(); updateHud(); startRound();
+  }
+  async function proceed() {            // after the map screen
+    if (act===1) {
+      const ns = stage + 1;
+      if (ns===2 && !bellaRecruited) { bellaRecruited = true; allies.push(makeAlly('bella')); await cutscene(bellaJoinHTML(), "let's go →"); }
+      startStage(1, ns);
+    } else if (act===2) {
+      const ns = stage + 1;
+      if (ns===3 && !ashen) { await cutscene(ashHTML(), 'press on →'); enableAsh(); }
+      startStage(2, ns);
+    } else {
+      const ns = stage + 1;
+      if (ns===3 && !emilyRecruited)  { emilyRecruited = true;  allies.push(makeAlly('emily'));  await cutscene(emilyJoinHTML(),  'glad to have you →'); }
+      if (ns===4 && !jaydenRecruited) { jaydenRecruited = true; allies.push(makeAlly('jayden')); await cutscene(jaydenJoinHTML(), 'welcome aboard →'); }
+      startStage(3, ns);
+    }
+  }
+  async function onStageClear() {
+    if (act===1 && stage===6) { await onRescue(); return; }       // Ink Boss → rescue Kale
+    if (act===2 && stage>=8) { await toAct3(); return; }          // path done → friends taken
+    if (act===3 && stage>=6) { await onTrueVictory(); return; }   // Ink Lord beaten
+    await showMap();
+    await proceed();
+  }
+  async function onRescue() {
+    await cutscene(rescueHTML(), 'Kale joins! →');
+    allies.push(makeAlly('kale'));
+    await cutscene(findPathHTML(), 'follow the path →');
+    startStage(2, 1);
+  }
+  async function toAct3() {
+    await cutscene(act3IntroHTML(), 'go after them →');
+    allies = allies.filter(a => a.type==='kale');           // Rodger & Bella are taken
+    if (!allies.length) allies = [ makeAlly('kale') ];
+    LEARNABLE.forEach(id => { seen[id] = 2; learned.add(id); });   // Kale's picked up their tricks
+    if (!ashen) enableAsh();
+    startStage(3, 1);
+  }
+  async function onTrueVictory() { over = true; await cutscene(victoryHTML(), 'the end ✦'); stopAsh(); toTitle(); }
+  async function onGameOver() { over = true; await cutscene(gameOverHTML(), 'try again'); stopAsh(); toTitle(); }
+
+  // ---------- map + rearrange ----------
+  function pathSVG(count, current) {
+    const W=560, H=150, pts=[];
+    for (let i=0;i<count;i++) { const x=28+i*((W-56)/(count-1)); const y=H/2 + (i%2?-26:26); pts.push([x,y]); }
+    const line = pts.map((p,i)=>(i?'L':'M')+p[0]+' '+p[1]).join(' ');
+    const dots = pts.map((p,i)=>{ const cur=(i+1)===current;
+      return `<circle cx="${p[0]}" cy="${p[1]}" r="${cur?15:11}" fill="${cur?'#fff':'#fbf8ef'}" stroke="var(--ink)" stroke-width="${cur?3:2}"/>
+        <text x="${p[0]}" y="${p[1]+5}" text-anchor="middle" font-family="'Patrick Hand',cursive" font-size="14" fill="var(--ink)">${i+1}</text>
+        ${cur?`<text x="${p[0]}" y="${p[1]-22}" text-anchor="middle" font-family="'Caveat',cursive" font-size="17" fill="var(--heal)">you</text>`:''}`;
+    }).join('');
+    return `<svg viewBox="0 0 ${W} ${H}" width="100%"><path d="${line}" fill="none" stroke="#b3ac9a" stroke-width="3" stroke-dasharray="6 7" stroke-linecap="round"/>${dots}</svg>`;
+  }
+  function buildMapScreen() {
+    const count = act===1?6 : act===2?8 : 6, next = Math.min(count, stage+1);
+    el('mapTitle').textContent = act===1 ? 'Paperland — the rescue' : act===2 ? 'Paperland — the path' : 'after the kidnappers';
+    el('mapText').innerHTML = act===1
+      ? `Stage ${stage} cleared. ${stage===5?'The <b style="color:var(--boss)">Ink Boss</b> is next — it has Kale!':'Onward through Paperland.'}`
+      : act===2
+      ? `Path ${stage} cleared. ${ashen?'Ash drifts down — the Ink Lord\'s blight spreads.':'The way winds deeper into greying pages.'}`
+      : `Stage ${stage} cleared. ${stage===5?'The <b style="color:var(--lord)">Ink Lord</b> lies ahead — and your friends!':'Press on through the blight.'}`;
+    el('mapGfx').innerHTML = pathSVG(count, next);
+    el('mapHint').innerHTML = `press <b>T</b> to rearrange abilities &amp; positions &nbsp;·&nbsp; learned: ${learned.size}`;
+    el('rearrange').classList.remove('open');
+  }
+  function showMap() {
+    return new Promise(res => {
+      buildMapScreen();
+      const ov = el('mapScreen'); ov.classList.add('show');
+      el('mapNext').onclick = () => { ov.classList.remove('show'); el('rearrange').classList.remove('open'); res(); };
+    });
+  }
+  function toggleRearrange() {
+    const r = el('rearrange');
+    if (r.classList.contains('open')) r.classList.remove('open');
+    else { buildRearrange(); r.classList.add('open'); }
+  }
+  function buildRearrange() {
+    const r = el('rearrange');
+    let html = '<div class="re-h">party positions</div><div class="re-order"><div class="re-sub">top = front line (the inks aim here most)</div>';
+    allies.forEach((a, i) => {
+      html += `<div class="re-pos">
+        <span class="re-posname">${i===0?'▶ ':''}${a.name}</span>
+        <span class="re-slotlabel">${i===0?'front':'back'}</span>
+        <span class="re-arrows">
+          <span class="re-up" data-i="${i}"${i===0?' style="opacity:.2;pointer-events:none"':''}>↑</span>
+          <span class="re-down" data-i="${i}"${i===allies.length-1?' style="opacity:.2;pointer-events:none"':''}>↓</span>
+        </span></div>`;
+    });
+    html += '</div><div class="re-h">abilities</div><div class="re-sub">tap to toggle · keep 1–' + MAX_SLOTS + ' per hero</div>';
+    for (const a of allies) {
+      const cand = [...new Set([ ...CORE[a.type], ...LEARNABLE.filter(id => learned.has(id)) ])];
+      html += `<div class="re-ally"><div class="re-name">${a.name} <span class="re-cap">(${a.loadout.length}/${MAX_SLOTS})</span></div><div class="re-learn">`;
+      for (const id of cand) {
+        const on = a.loadout.includes(id);
+        html += `<span class="re-toggle ${ABIL[id].cls} ${on?'on':''}" data-ally="${a.name}" data-ab="${id}">${on?'✓ ':'+ '}${ABIL[id].name}</span>`;
+      }
+      html += `</div></div>`;
+    }
+    r.innerHTML = html;
+    r.querySelectorAll('.re-up').forEach(b => b.onclick = () => moveAlly(+b.dataset.i, -1));
+    r.querySelectorAll('.re-down').forEach(b => b.onclick = () => moveAlly(+b.dataset.i, 1));
+    r.querySelectorAll('.re-toggle').forEach(t => t.onclick = () => toggleLoadout(t.dataset.ally, t.dataset.ab));
+  }
+  function moveAlly(i, dir) {
+    const j = i + dir;
+    if (j < 0 || j >= allies.length) return;
+    [allies[i], allies[j]] = [allies[j], allies[i]];
+    buildRearrange();
+    renderArena();
+  }
+  function toggleLoadout(allyName, id) {
+    const a = allies.find(x => x.name===allyName); if (!a) return;
+    const i = a.loadout.indexOf(id);
+    if (i >= 0) { if (a.loadout.length <= 1) return; a.loadout.splice(i,1); }   // keep at least one
+    else { if (a.loadout.length >= MAX_SLOTS) return; a.loadout.push(id); }
+    buildRearrange();
+  }
+
+  // ---------- ash ----------
+  function enableAsh() { if (ashen) return; ashen=true; document.body.classList.add('ashen'); el('ashOverlay').classList.add('on');
+    ashTimer = setInterval(()=>{ for(let i=0;i<2;i++) spawnFlake(); }, 360); }
+  function stopAsh() { ashen=false; if(ashTimer){clearInterval(ashTimer);ashTimer=null;} el('ashLayer').innerHTML=''; el('ashOverlay').classList.remove('on'); document.body.classList.remove('ashen'); }
+  function spawnFlake() {
+    const f = document.createElement('div'); f.className='ash-flake';
+    const s = 3+Math.random()*5; f.style.width=f.style.height=s+'px';
+    f.style.left = (Math.random()*100)+'vw'; f.style.setProperty('--dx', (Math.random()*60-30)+'px');
+    f.style.animationDuration = (4+Math.random()*4)+'s';
+    el('ashLayer').appendChild(f); setTimeout(()=>f.remove(), 8500);
+  }
+
+  // ---------- cutscenes ----------
+  function cutscene(html, btnLabel) {
+    return new Promise(res => {
+      el('cutBody').innerHTML = html; el('cutBtn').textContent = btnLabel;
+      const ov = el('cutscene'); ov.classList.add('show');
+      el('cutBtn').onclick = () => { ov.classList.remove('show'); res(); };
+    });
+  }
+  // --- picture art: each returns inner SVG drawn in a 100×100 box, feet at y≈94 ---
+  const ART = {
+    hero: (c,f) => `<path d="M28 94 L28 56 Q28 40 50 40 Q72 40 72 56 L72 94" fill="none" stroke="${c}" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="50" cy="24" r="16" fill="#fbf8ef" stroke="${c}" stroke-width="3.4"/><text x="50" y="30" text-anchor="middle" font-family="'Patrick Hand',cursive" font-size="18" fill="${c}">${f}</text>`,
+    kale: () => `<path d="M50 40 L26 92 L74 92 Z" fill="rgba(63,157,90,0.12)" stroke="var(--kale)" stroke-width="3.4" stroke-linejoin="round"/><circle cx="50" cy="26" r="14" fill="#eef9f0" stroke="var(--kale)" stroke-width="3.4"/><text x="50" y="31" text-anchor="middle" font-family="'Patrick Hand',cursive" font-size="16" fill="var(--kale)">:)</text>`,
+    ink: (c,f) => `<path d="M28 94 L28 56 Q28 40 50 40 Q72 40 72 56 L72 94" fill="none" stroke="${c}" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="50" cy="24" r="16" fill="rgba(21,21,28,0.1)" stroke="${c}" stroke-width="3.4"/><text x="50" y="30" text-anchor="middle" font-family="'Patrick Hand',cursive" font-size="18" fill="${c}">${f}</text><ellipse cx="33" cy="97" rx="3" ry="5" fill="${c}"/><ellipse cx="67" cy="97" rx="3" ry="5" fill="${c}"/>`,
+    lord: () => `<path d="M24 96 L24 54 Q24 36 50 36 Q76 36 76 54 L76 96" fill="rgba(75,42,99,0.14)" stroke="var(--lord)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="50" cy="24" r="17" fill="rgba(75,42,99,0.18)" stroke="var(--lord)" stroke-width="4"/><path d="M33 12 L39 0 L46 9 L50 -3 L54 9 L61 0 L67 12 Z" fill="#d9a93a" stroke="#b3851f" stroke-width="2" stroke-linejoin="round"/><text x="50" y="31" text-anchor="middle" font-family="'Patrick Hand',cursive" font-size="18" fill="var(--lord)">&gt;:(</text>`,
+    puddle: (c) => `<ellipse cx="50" cy="90" rx="36" ry="9" fill="${c}" opacity="0.5"/><ellipse cx="28" cy="88" rx="5" ry="3" fill="${c}" opacity="0.4"/><ellipse cx="74" cy="92" rx="6" ry="3" fill="${c}" opacity="0.4"/>`,
+  };
+  function at(inner, cx, footY, s) { return `<g transform="translate(${cx-50*s},${footY-94*s}) scale(${s})">${inner}</g>`; }
+  function sceneWrap(inner) { return `<svg class="scene" viewBox="0 0 440 210" width="100%">${inner}</svg>`; }
+  function ashDots(c) { c = c||'#9a988f'; let s=''; for (let i=0;i<16;i++) s += `<circle cx="${rint(8,432)}" cy="${rint(6,150)}" r="${1+Math.random()*2}" fill="${c}" opacity="0.5"/>`; return s; }
+  function bgDay()  { return `<rect width="440" height="210" rx="10" fill="#fbf8ef"/><line x1="0" y1="158" x2="440" y2="158" stroke="#d8d2bf" stroke-width="2"/><circle cx="376" cy="40" r="22" fill="#ffe7a8" stroke="#e6c86a" stroke-width="2"/>`; }
+  function bgAsh()  { return `<rect width="440" height="210" rx="10" fill="#d2d0cb"/><line x1="0" y1="158" x2="440" y2="158" stroke="#9a988f" stroke-width="2"/><circle cx="376" cy="40" r="20" fill="#bfbcb3" stroke="#a3a097" stroke-width="2"/>` + ashDots(); }
+  function bgDark() { return `<rect width="440" height="210" rx="10" fill="#241c2b"/><path d="M0 158 L40 70 L80 158 M120 158 L150 48 L180 158 M360 158 L400 58 L440 158" fill="#1c1622" stroke="#4b2a63" stroke-width="2"/><line x1="0" y1="158" x2="440" y2="158" stroke="#3c3145" stroke-width="2"/>` + ashDots('#6b6475'); }
+
+  function mapHTML() { return `<h2 class="cut-title">Papergrounds</h2>${sceneWrap(bgDay()
+    + at(ART.hero('var(--ink)',':)'), 70, 158, 0.95) + `<text x="112" y="78" font-family="'Caveat',cursive" font-size="26" fill="var(--ink)">!</text>`
+    + at(ART.ink('var(--enemy)',':)'), 250, 158, 0.78) + at(ART.kale(), 300, 150, 0.66) + at(ART.ink('var(--enemy)',':)'), 350, 158, 0.78))}
+    <p class="cut-cap">the inks snatched <b style="color:var(--kale)">Kale</b> — chase them across 5 stages!</p>`; }
+  function bellaJoinHTML() { return `<h2 class="cut-title" style="color:var(--bella)">Bella joins!</h2>${sceneWrap(bgDay()
+    + at(ART.hero('var(--ink)',':)'), 160, 158, 0.95) + at(ART.hero('var(--bella)','&gt;:)'), 290, 158, 0.95)
+    + `<text x="330" y="66" font-family="'Caveat',cursive" font-size="24" fill="var(--bella)">&gt;:)</text>`)}
+    <p class="cut-cap">“need a hand, Rodger?” — punch · triple · recover</p>`; }
+  function rescueHTML() { return `<h2 class="cut-title" style="color:var(--heal)">Kale is safe!</h2>${sceneWrap(bgDay()
+    + at(ART.puddle('var(--boss)'), 372, 158, 1)
+    + at(ART.hero('var(--ink)',':)'), 90, 158, 0.9) + at(ART.hero('var(--bella)','&gt;:)'), 180, 158, 0.9) + at(ART.kale(), 270, 158, 0.95))}
+    <p class="cut-cap"><b style="color:var(--kale)">Kale</b> joins! — recover · medkit · sawblade</p>`; }
+  function findPathHTML() { return `<h2 class="cut-title">a path appears</h2>${sceneWrap(bgDay()
+    + `<path d="M40 160 Q230 120 410 92" fill="none" stroke="#b3ac9a" stroke-width="3" stroke-dasharray="7 8"/><path d="M362 92 L392 38 L422 92 Z" fill="#1c1622" stroke="var(--lord)" stroke-width="2"/>`
+    + at(ART.hero('var(--ink)',':)'),70,158,0.7) + at(ART.hero('var(--bella)','&gt;:)'),112,158,0.7) + at(ART.kale(),154,158,0.7))}
+    <p class="cut-cap">the <b style="color:var(--lord)">Ink Lord</b> rules Paperland — onward.</p>`; }
+  function act2IntroHTML() { return `<h2 class="cut-title">into Paperland</h2>${sceneWrap(bgDay()
+    + `<path d="M40 160 Q230 120 410 92" fill="none" stroke="#b3ac9a" stroke-width="3" stroke-dasharray="7 8"/><path d="M362 92 L392 38 L422 92 Z" fill="#1c1622" stroke="var(--lord)" stroke-width="2"/>`
+    + at(ART.hero('var(--ink)',':)'),70,158,0.72) + at(ART.hero('var(--bella)','&gt;:)'),114,158,0.72) + at(ART.kale(),158,158,0.72)
+    + at(ART.ink('var(--bluink)',':('),300,158,0.7) + at(ART.ink('var(--grnink)',':|'),350,158,0.7))}
+    <p class="cut-cap">8 stages to the <b style="color:var(--lord)">Ink Lord</b> · new inks: <b style="color:var(--bluink)">blue</b>, <b style="color:var(--grnink)">green</b></p>`; }
+  function ashHTML() { return `<h2 class="cut-title" style="color:#6a6a72">the page greys</h2>${sceneWrap(bgAsh()
+    + at(ART.hero('var(--ink)',':)'),130,158,0.7) + at(ART.hero('var(--bella)','&gt;:)'),205,158,0.7) + at(ART.kale(),280,158,0.7))}
+    <p class="cut-cap">ash falls — the blight spreads.</p>`; }
+  const SHADOW = `<path d="M50 94 Q22 94 25 54 Q25 26 50 22 Q75 26 75 54 Q78 94 50 94 Z" fill="#14111a" stroke="#000" stroke-width="2"/><circle cx="42" cy="50" r="3.5" fill="#caa6e0"/><circle cx="58" cy="50" r="3.5" fill="#caa6e0"/>`;
+  const JAY = `<rect x="28" y="44" width="44" height="50" rx="5" fill="#f6f3e8" stroke="var(--jayden)" stroke-width="3.4"/><circle cx="50" cy="24" r="16" fill="#f6f3e8" stroke="var(--jayden)" stroke-width="3.4"/><text x="50" y="30" text-anchor="middle" font-family="'Patrick Hand',cursive" font-size="18" fill="var(--jayden)">:)</text>`;
+  function act3IntroHTML() { return `<h2 class="cut-title" style="color:#caa6e0">they're gone!</h2>${sceneWrap(bgDark()
+    + at(SHADOW, 300, 158, 1.3)
+    + at(ART.hero('var(--ink)','x_x'), 232, 150, 0.58) + at(ART.hero('var(--bella)','x_x'), 364, 150, 0.58)
+    + at(ART.kale(), 90, 158, 0.85)
+    + `<text x="300" y="32" text-anchor="middle" font-family="'Caveat',cursive" font-size="36" fill="#caa6e0">?</text>`)}
+    <p class="cut-cap" style="color:#cfc7d6"><b style="color:var(--ink)">Rodger</b> &amp; <b style="color:var(--bella)">Bella</b> — taken by something unknown. <b style="color:var(--kale)">Kale</b> gives chase. (6 stages)</p>`; }
+  function emilyJoinHTML() { return `<h2 class="cut-title" style="color:var(--emily)">Emily joins!</h2>${sceneWrap(bgAsh()
+    + at(ART.kale(), 160, 158, 0.95) + at(ART.hero('var(--emily)',':]'), 280, 158, 0.95))}
+    <p class="cut-cap">a pink ally <b style="color:var(--emily)">:]</b> — bonk &amp; <b style="color:var(--emily)">sweep</b> (hits all enemies)</p>`; }
+  function jaydenJoinHTML() { return `<h2 class="cut-title" style="color:var(--jayden)">Jayden joins!</h2>${sceneWrap(bgAsh()
+    + at(ART.kale(),120,158,0.82) + at(ART.hero('var(--emily)',':]'),198,158,0.82) + at(JAY, 300, 158, 1.05))}
+    <p class="cut-cap">a sturdy pencil bloke — punch · toughen · mend · <b>lots of HP</b></p>`; }
+  function victoryHTML() { return `<h2 class="cut-title" style="color:var(--heal)">Paperland is saved!</h2>${sceneWrap(bgDay()
+    + at(ART.puddle('var(--lord)'), 372, 158, 1.15)
+    + `<text x="56" y="58" font-family="'Caveat',cursive" font-size="26" fill="var(--heal)">✦</text><text x="410" y="72" font-family="'Caveat',cursive" font-size="22" fill="var(--heal)">✦</text>`
+    + at(ART.hero('var(--ink)',':)'),80,156,0.9) + at(ART.hero('var(--bella)','&gt;:)'),160,156,0.9) + at(ART.kale(),238,156,0.9) + at(ART.hero('var(--emily)',':]'),310,156,0.9))}
+    <p class="cut-cap">the Ink Lord falls — <b style="color:var(--ink)">Rodger</b> &amp; <b style="color:var(--bella)">Bella</b> are free! 🎉</p>`; }
+  function gameOverHTML() { return `<h2 class="cut-title" style="color:var(--enemy)">the ink wins...</h2>${sceneWrap(bgAsh()
+    + at(ART.ink('var(--enemy)','&gt;:)'), 330, 158, 1.3)
+    + at(ART.hero('var(--ink)','x_x'),100,158,0.85) + at(ART.hero('var(--bella)','x_x'),180,158,0.85))}
+    <p class="cut-cap">lost to the ink...</p>`; }
+
+  // ---------- boot ----------
+  function initLeveling(lv) { level = lv; xp = 0; xpNeeded = 20; for (let i=1;i<lv;i++) xpNeeded = Math.round(xpNeeded*1.45); }
+  async function campaign() {
+    over = false; busy = true; kills = 0; roundNo = 0;
+    seen = {}; learned = new Set(); stopAsh(); enemies = [];
+    bellaRecruited = false; emilyRecruited = false; jaydenRecruited = false;
+    if (startAct === 3) {
+      initLeveling(11); bellaRecruited = true;
+      allies = [ makeAlly('kale') ]; updateHud();
+      LEARNABLE.forEach(id => { seen[id] = 2; learned.add(id); });
+      await cutscene(act3IntroHTML(), 'go after them →');
+      enableAsh();
+      startStage(3, 1);
+    } else if (startAct === 2) {
+      initLeveling(5); bellaRecruited = true;
+      allies = [ makeAlly('rodger'), makeAlly('bella'), makeAlly('kale') ]; updateHud();
+      await cutscene(act2IntroHTML(), 'follow the path →');
+      startStage(2, 1);
+    } else {
+      initLeveling(1);
+      allies = [ makeAlly('rodger') ]; updateHud();
+      await cutscene(mapHTML(), 'set off →');
+      startStage(1, 1);
+    }
+  }
+  function toTitle() { const t = el('titleScreen'); t.style.display='flex'; requestAnimationFrame(()=> t.classList.remove('gone')); }
+
+  el('titlePreview').innerHTML = rodgerSVG() + '<span class="vs">vs</span>' + inkSVG('normal');
+  function setDiff(d) { diff = d; document.querySelectorAll('#diffPick .diff-btn').forEach(b => b.classList.toggle('on', b.dataset.diff===d)); }
+  document.querySelectorAll('#diffPick .diff-btn').forEach(b => b.onclick = () => setDiff(b.dataset.diff));
+  setDiff('mid');
+  function setAct(a) { startAct = a; document.querySelectorAll('#actPick .act-btn').forEach(b => b.classList.toggle('on', b.dataset.act===String(a))); }
+  document.querySelectorAll('#actPick .act-btn').forEach(b => b.onclick = () => setAct(Number(b.dataset.act)));
+  setAct(1);
+  el('btnStart').onclick = () => { const t = el('titleScreen'); t.classList.add('gone'); setTimeout(()=> t.style.display='none', 520); campaign(); };
+  document.addEventListener('keydown', e => { if ((e.key==='t'||e.key==='T') && el('mapScreen').classList.contains('show')) toggleRearrange(); });
+
+  // ---------- admin / debug panel ----------
+  function closeAdmin() { el('adminPanel').classList.remove('open'); }
+  async function adminAdvance() {           // force-clear the current stage
+    if (over || busy || !enemies) return;
+    busy = true; el('actions').classList.add('locked'); closeAdmin();
+    await onStageClear();
+    if (!over) busy = false;
+  }
+  el('adminBtn').onclick = () => el('adminPanel').classList.toggle('open');
+  el('admSkip').onclick = () => {
+    if (over || busy || !enemies) return;
+    enemies.forEach(e => { if (!e.dead) { e.dead = true; e.hp = 0; anim(e.sprite,'die',600); } });
+    updateBars(); adminAdvance();
+  };
+  el('admKill').onclick = () => {
+    if (over || !enemies) return;
+    const e = enemies.find(x => !x.dead); if (!e) return;
+    killFighter(e);
+    if (enemies.every(x => x.dead) && phase==='player' && !busy) adminAdvance();
+  };
+  el('admHeal').onclick = () => {
+    if (!allies) return;
+    for (const a of allies) { a.dead = false; a.hp = a.maxHp; a.wet = 0; a.bleed = 0; a.confused = 0; }
+    updateBars(); popup('full heal!', '#2e8b3d');
+  };
+  el('admLearn').onclick = () => {
+    if (!learned) return;
+    LEARNABLE.forEach(id => { seen[id] = 2; learned.add(id); });
+    popup('learned all moves!', 'var(--triple)');
+    if (el('rearrange').classList.contains('open')) buildRearrange();
+  };
+</script>
+</body>
+</html>

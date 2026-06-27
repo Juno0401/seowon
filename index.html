@@ -21,10 +21,11 @@
     color: var(--text);
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
     min-height: 100vh;
+    overflow-x: hidden;
   }
 
   /* ---- Hero ---- */
-  header { text-align: center; padding: 80px 20px 40px; }
+  header { text-align: center; padding: 70px 20px 24px; }
   .badge {
     display: inline-block; font-size: 12px; letter-spacing: 3px; text-transform: uppercase;
     color: var(--muted); border: 1px solid rgba(255,255,255,0.12);
@@ -43,35 +44,99 @@
   .subtitle b { color: var(--text); }
   .subtitle .vibe { color: #ff6bd0; font-weight: 700; letter-spacing: 1px; }
 
-  /* ---- Columns ---- */
-  main { max-width: 1200px; margin: 0 auto; padding: 10px 22px 80px; }
-  .columns {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; align-items: start;
+  main { max-width: 1180px; margin: 0 auto; padding: 10px 22px 90px; }
+
+  .hint {
+    text-align: center; color: var(--muted); letter-spacing: 3px; text-transform: uppercase;
+    font-size: 13px; margin: 10px 0 34px; transition: opacity .35s;
   }
-  @media (max-width: 820px) { .columns { grid-template-columns: 1fr; } }
-  .col-head {
-    display: flex; align-items: center; gap: 10px;
-    font-size: 15px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
-    padding: 0 4px 14px; margin-bottom: 16px;
-    border-bottom: 2px solid var(--colcol, #7af);
-    color: var(--colcol, #7af);
+  .hint.gone { opacity: 0; }
+
+  /* ---- File folders ---- */
+  .files {
+    display: flex; gap: 40px; justify-content: center; flex-wrap: wrap;
+    min-height: 230px; align-items: flex-start;
   }
-  .col-head .count {
-    margin-left: auto; font-size: 12px; color: var(--muted);
-    background: rgba(255,255,255,0.06); border-radius: 999px; padding: 3px 10px; letter-spacing: 1px;
+  .file {
+    position: relative; width: 240px; height: 196px; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+    border-radius: 16px;
+    background: linear-gradient(165deg, rgba(255,255,255,0.02), var(--card));
+    border: 1px solid rgba(255,255,255,0.10);
+    border-top: 3px solid var(--fc, #7af);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.4);
+    transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease,
+                opacity .45s ease, width .4s ease, height .4s ease;
   }
-  .column .cards { display: flex; flex-direction: column; gap: 16px; }
-  .col-empty { color: var(--muted); font-size: 13px; padding: 10px 4px; }
+  /* folder tab notch */
+  .file::before {
+    content: ""; position: absolute; top: -15px; left: 22px;
+    width: 86px; height: 16px; background: var(--fc, #7af);
+    border-radius: 8px 16px 0 0; opacity: 0.9;
+  }
+  .file:hover {
+    transform: translateY(-8px);
+    border-color: var(--fc, #7af);
+    box-shadow: 0 18px 44px rgba(0,0,0,0.5), 0 0 34px -8px var(--fc, #7af);
+  }
+  .file .ficon { font-size: 64px; line-height: 1; filter: drop-shadow(0 4px 10px rgba(0,0,0,.4)); }
+  .file .fname { font-weight: 900; letter-spacing: 3px; font-size: 20px; color: var(--fc, #7af); }
+  .file .fcount { font-size: 12px; letter-spacing: 1px; color: var(--muted); }
+
+  /* the un-clicked folders fly away */
+  .file.gone {
+    opacity: 0; transform: scale(.5) translateY(60px) rotate(-8deg); pointer-events: none;
+  }
+  /* the clicked folder turns into the EXIT button */
+  .file.as-exit {
+    width: 170px; height: 70px; gap: 2px; cursor: pointer;
+    border-top-color: #ff5a6a;
+  }
+  .file.as-exit::before { background: #ff5a6a; }
+  .file.as-exit .ficon { font-size: 26px; }
+  .file.as-exit .fname { font-size: 18px; color: #ff8a96; }
+  .file.as-exit:hover { box-shadow: 0 18px 44px rgba(0,0,0,0.5), 0 0 34px -8px #ff5a6a; border-color:#ff5a6a; }
+
+  @keyframes fileShake {
+    0%,100% { transform: translate(0,0) rotate(0); }
+    15% { transform: translate(-7px,3px) rotate(-3deg); }
+    30% { transform: translate(7px,-3px) rotate(3deg); }
+    45% { transform: translate(-6px,2px) rotate(-2deg); }
+    60% { transform: translate(6px,-2px) rotate(2deg); }
+    75% { transform: translate(-3px,1px) rotate(-1deg); }
+  }
+  .file.shake { animation: fileShake .46s ease; }
+
+  /* white particle burst */
+  .particle {
+    position: fixed; width: 9px; height: 9px; border-radius: 50%;
+    background: #fff; box-shadow: 0 0 10px #fff, 0 0 18px rgba(255,255,255,.6);
+    pointer-events: none; opacity: 1; z-index: 60;
+    transition: transform .75s cubic-bezier(.15,.7,.2,1), opacity .75s ease;
+  }
+
+  /* ---- Physics stage: games bounce around in here ---- */
+  .stage {
+    position: relative; width: 100%; max-width: 1100px; margin: 26px auto 0;
+    height: clamp(440px, 64vh, 760px);
+    border: 1px dashed rgba(255,255,255,0.06); border-radius: 18px;
+    overflow: hidden;
+  }
+  .stage.hidden { display: none; }
+  .col-empty { color: var(--muted); font-size: 14px; text-align: center; padding-top: 80px; }
 
   .card {
+    position: absolute; top: 0; left: 0; width: 268px;
     background: linear-gradient(165deg, #16162400, var(--card));
     border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; overflow: hidden;
     text-decoration: none; color: inherit; display: flex; flex-direction: column;
-    transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+    box-shadow: 0 10px 26px rgba(0,0,0,0.4);
+    will-change: transform; transform-origin: center center;
+    transition: border-color .18s ease, box-shadow .18s ease;
   }
   a.card:hover {
-    transform: translateY(-5px); border-color: var(--cardaccent, #7af);
-    box-shadow: 0 16px 40px rgba(0,0,0,0.45), 0 0 30px -8px var(--cardaccent, #7af);
+    border-color: var(--cardaccent, #7af);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.5), 0 0 30px -8px var(--cardaccent, #7af);
   }
   .thumb {
     height: 120px; display: flex; align-items: center; justify-content: center; font-size: 52px; position: relative;
@@ -93,8 +158,7 @@
     display: inline-flex; align-items: center; gap: 8px; font-weight: 800; font-size: 13px;
     color: #0a0a12; background: var(--cardaccent, #7af); border-radius: 9px; padding: 9px 15px; align-self: flex-start;
   }
-  /* failed games: greyed out, not playable */
-  .card.failed { opacity: 0.55; filter: grayscale(0.7); }
+  .card.failed { opacity: 0.6; filter: grayscale(0.7); }
   .card.failed .card-title { text-decoration: line-through; }
   .card.failed .play { background: #3a3a48; color: #aab; cursor: not-allowed; }
 
@@ -110,7 +174,9 @@
   </header>
 
   <main>
-    <div class="columns" id="columns"></div>
+    <div class="hint" id="hint">▸ open a folder</div>
+    <div class="files" id="files"></div>
+    <div class="stage hidden" id="stage"></div>
   </main>
 
   <footer>
@@ -130,9 +196,9 @@
     },
     {
       title: "Sword Smash", status: "finished",
-      desc: "A fast melee brawler — swing your sword and smash through waves of foes.",
-      file: "sword-smash.html", icon: "⚔️", color: "#7ac5ff",
-      tags: ["Action", "Melee", "Crits"]
+      desc: "A platform fighter: pick a weapon (dagger/sword/axe/spear), forge its material from wood to diamond, then knock your rival off a big scrolling stage. Jump-swing for crits. Bot or local 2-player.",
+      file: "sword-smash.html", icon: "⚔️", color: "#54e0d8",
+      tags: ["Fighting", "Platformer", "Crits"]
     },
     {
       title: "Life Sim", status: "failed",
@@ -140,14 +206,67 @@
       file: "life-sim.html", icon: "🌍", color: "#5fe08a",
       tags: ["Simulation", "Cells"]
     },
+    {
+      title: "Papergrounds", status: "beta",
+      desc: "An ink-and-pencil RPG on notebook paper, in 3 acts: rescue Kale from the Ink Boss, push across a greying Paperland, then chase the kidnapped Rodger & Bella to the Ink Lord with a new crew (Emily, Jayden). Learn enemy moves, rearrange abilities & party order on the map, pick difficulty.",
+      file: "papergrounds.html", icon: "📝", color: "#15151c",
+      tags: ["RPG", "Turn-based", "Paper"]
+    },
+    {
+      title: "Future Stock", status: "beta",
+      desc: "A cyberpunk market predictor. Play a Hacker trading 4 volatile future-assets — go LONG or SHORT on live neon prices, ride City Events (spikes, crashes, resurrections), and spend Neural Battery on every trade. Grow 1,000 Mindshare into 1,000,000 before you flatline.",
+      file: "future-stock.html", icon: "📈", color: "#00e5ff",
+      tags: ["Trading", "Cyberpunk", "Arcade"]
+    },
+    {
+      title: "Rootrot", status: "beta",
+      desc: "Top-down survival horror in a pitch-black forest. You're the last Fungus Warden, lit only by a failing lantern, hunted through the trees by the Hollow. Find and cleanse the four buried hearts before dawn — but cleansing draws it to you, and if it touches you, you're gone. Real-time, with proximity heartbeat audio.",
+      file: "rootrot.html", icon: "🍄", color: "#56d98a",
+      tags: ["Survival horror", "Stealth", "Real-time"]
+    },
+    {
+      title: "Stick Legion", status: "beta",
+      desc: "A Battle-Cats-style lane war. Pick a squad of animated stickman troops — Swordsman, Archer, Spearman, shielded Warrior, splash-casting Mage — earn cents, and storm the enemy keep across a wide, scrollable Minecraft-blocky battlefield. Your foes are the same warriors, but with square heads. Upgrade your worker, repair your keep, and push the line.",
+      file: "stick-legion.html", icon: "🤺", color: "#8fb8ff",
+      tags: ["Lane battle", "Tug-of-war", "Auto-battler"]
+    },
     // Add the next game here ↓
   ];
 
-  const COLUMNS = [
-    { id: "finished", label: "✅ Finished", color: "#3ad96b" },
-    { id: "beta",     label: "🧪 Beta",     color: "#ffcc3a" },
-    { id: "failed",   label: "❌ Failed",   color: "#ff5a6a" },
+  // The three folders
+  const CATS = [
+    { id: "finished", label: "FINISHED", icon: "📁", color: "#3ad96b" },
+    { id: "beta",     label: "BETA",     icon: "📂", color: "#ffcc3a" },
+    { id: "failed",   label: "CANCELED", icon: "🗑️", color: "#ff5a6a" },
   ];
+
+  const filesEl = document.getElementById('files');
+  const stage = document.getElementById('stage');
+  const hint = document.getElementById('hint');
+  let openId = null;
+  let cards = [];          // physics bodies
+  let physRAF = null;
+
+  // ---- build the folders ----
+  for (const cat of CATS) {
+    const count = GAMES.filter(g => g.status === cat.id).length;
+    const f = document.createElement('div');
+    f.className = 'file';
+    f.style.setProperty('--fc', cat.color);
+    f.dataset.id = cat.id;
+    f.dataset.label = cat.label;
+    f.dataset.icon = cat.icon;
+    f.dataset.count = count;
+    f.innerHTML = `
+      <div class="ficon">${cat.icon}</div>
+      <div class="fname">${cat.label}</div>
+      <div class="fcount">${count} game${count===1?'':'s'}</div>`;
+    f.addEventListener('click', () => {
+      if (f.classList.contains('as-exit')) closeFolder(f);
+      else if (!openId) openFolder(cat.id, f);
+    });
+    filesEl.appendChild(f);
+  }
 
   function cardHTML(g) {
     return `
@@ -160,35 +279,159 @@
       </div>`;
   }
 
-  const root = document.getElementById('columns');
-  for (const col of COLUMNS) {
-    const games = GAMES.filter(g => g.status === col.id);
-    const column = document.createElement('div');
-    column.className = 'column';
-    column.style.setProperty('--colcol', col.color);
+  // ---- white particle burst from a screen point ----
+  function burst(cx, cy, n) {
+    n = n || 34;
+    for (let i = 0; i < n; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      const sz = 5 + Math.random()*8;
+      p.style.width = p.style.height = sz + 'px';
+      p.style.left = (cx - sz/2) + 'px';
+      p.style.top  = (cy - sz/2) + 'px';
+      document.body.appendChild(p);
+      const ang = Math.random() * Math.PI * 2;
+      const dist = 60 + Math.random() * 190;
+      requestAnimationFrame(() => {
+        p.style.transform = `translate(${Math.cos(ang)*dist}px, ${Math.sin(ang)*dist}px) scale(${0.2+Math.random()*0.8})`;
+        p.style.opacity = '0';
+      });
+      setTimeout(() => p.remove(), 800);
+    }
+  }
 
-    const head = document.createElement('div');
-    head.className = 'col-head';
-    head.innerHTML = `${col.label}<span class="count">${games.length}</span>`;
-    column.appendChild(head);
+  function openFolder(id, fileEl) {
+    openId = id;
+    const r = fileEl.getBoundingClientRect();
+    burst(r.left + r.width/2, r.top + r.height/2);
+    fileEl.classList.add('shake');
+    setTimeout(() => fileEl.classList.remove('shake'), 460);
+    hint.classList.add('gone');
 
-    const cards = document.createElement('div');
-    cards.className = 'cards';
-    if (games.length === 0) {
-      cards.innerHTML = `<div class="col-empty">— nothing here yet —</div>`;
-    } else {
-      for (const g of games) {
-        // failed games are shown but not clickable
-        const el = document.createElement(g.status === 'failed' ? 'div' : 'a');
-        el.className = 'card' + (g.status === 'failed' ? ' failed' : '');
-        if (g.status !== 'failed') el.href = g.file;
-        el.style.setProperty('--cardaccent', g.color);
-        el.innerHTML = cardHTML(g);
-        cards.appendChild(el);
+    // after the shake settles: hide other folders, morph this one to EXIT, pop the games out
+    setTimeout(() => {
+      document.querySelectorAll('.file').forEach(el => { if (el !== fileEl) el.classList.add('gone'); });
+      fileEl.classList.add('as-exit');
+      fileEl.querySelector('.ficon').textContent = '✕';
+      fileEl.querySelector('.fname').textContent = 'EXIT?';
+      fileEl.querySelector('.fcount').textContent = 'close';
+      spawnGames(id, fileEl);
+      hint.textContent = '▸ click empty space to bounce the games · click one to play';
+      hint.classList.remove('gone');
+    }, 300);
+  }
+
+  // pop the category's games out of the folder as bouncy physics cards
+  function spawnGames(id, fileEl) {
+    stage.innerHTML = '';
+    stage.classList.remove('hidden');
+    cards = [];
+    const games = GAMES.filter(g => g.status === id);
+    if (!games.length) {
+      stage.innerHTML = '<div class="col-empty">— nothing here yet —</div>';
+      return;
+    }
+    const sw = stage.clientWidth;
+    const stageRect = stage.getBoundingClientRect();
+    const exitRect = fileEl.getBoundingClientRect();
+    // where the games erupt from, in stage-local coords (the EXIT folder)
+    const srcX = exitRect.left + exitRect.width/2 - stageRect.left;
+    const now = performance.now();
+    games.forEach((g, idx) => {
+      const el = document.createElement(g.status === 'failed' ? 'div' : 'a');
+      el.className = 'card' + (g.status === 'failed' ? ' failed' : '');
+      if (g.status !== 'failed') el.href = g.file;
+      el.style.setProperty('--cardaccent', g.color);
+      el.innerHTML = cardHTML(g);
+      stage.appendChild(el);
+      const w = el.offsetWidth, h = el.offsetHeight;
+      const ang = -Math.PI/2 + (Math.random()-0.5)*1.7;   // mostly up-and-out of the folder
+      const spd = 13 + Math.random()*8;
+      cards.push({
+        el, w, h,
+        x: srcX - w/2, y: 4,
+        vx: Math.cos(ang)*spd,
+        vy: 5 + Math.random()*5,
+        rot: (Math.random()-0.5)*24, vrot: (Math.random()-0.5)*7,
+        born: now + idx*90,                                // pop out one after another
+      });
+    });
+    lastStep = performance.now();
+    if (!physRAF) physRAF = requestAnimationFrame(physStep);
+  }
+
+  let lastStep = 0;
+  function physStep() {
+    const sw = stage.clientWidth, sh = stage.clientHeight;
+    const now = performance.now();
+    for (const c of cards) {
+      if (now < c.born) { c.el.style.transform = `translate(${c.x}px,${c.y}px) scale(0)`; continue; }
+      c.x += c.vx; c.y += c.vy; c.rot += c.vrot;
+      c.vx *= 0.986; c.vy *= 0.986; c.vrot *= 0.95;
+      // bounce off the stage walls
+      if (c.x < 0)        { c.x = 0;        c.vx =  Math.abs(c.vx)*0.72; c.vrot += 1; }
+      if (c.x + c.w > sw) { c.x = sw - c.w; c.vx = -Math.abs(c.vx)*0.72; c.vrot -= 1; }
+      if (c.y < 0)        { c.y = 0;        c.vy =  Math.abs(c.vy)*0.72; }
+      if (c.y + c.h > sh) { c.y = sh - c.h; c.vy = -Math.abs(c.vy)*0.72; c.vx *= 0.92; c.vrot *= 0.9; }
+      const sc = Math.min(1, (now - c.born)/130);
+      c.el.style.transform = `translate(${c.x}px,${c.y}px) rotate(${c.rot}deg) scale(${sc})`;
+    }
+    // keep cards from overlapping (circle approximation)
+    for (let i=0;i<cards.length;i++) for (let j=i+1;j<cards.length;j++) {
+      const a = cards[i], b = cards[j];
+      if (now < a.born || now < b.born) continue;
+      const ax=a.x+a.w/2, ay=a.y+a.h/2, bx=b.x+b.w/2, by=b.y+b.h/2;
+      let dx=bx-ax, dy=by-ay, dist=Math.hypot(dx,dy)||1;
+      const minD = (Math.min(a.w,a.h)+Math.min(b.w,b.h))/2 * 0.85;
+      if (dist < minD) {
+        const push = (minD-dist)/dist*0.5, nx=dx/dist, ny=dy/dist;
+        a.x-=dx*push; a.y-=dy*push; b.x+=dx*push; b.y+=dy*push;
+        const p = (a.vx-b.vx)*nx + (a.vy-b.vy)*ny;
+        if (p > 0) { a.vx-=p*nx; a.vy-=p*ny; b.vx+=p*nx; b.vy+=p*ny; }
       }
     }
-    column.appendChild(cards);
-    root.appendChild(column);
+    physRAF = requestAnimationFrame(physStep);
+  }
+
+  // click empty space near cards → shove them away from the click
+  stage.addEventListener('click', e => {
+    if (e.target !== stage) return;          // clicked a card itself → let it play
+    const r = stage.getBoundingClientRect();
+    const px = e.clientX - r.left, py = e.clientY - r.top;
+    const R = 320;
+    for (const c of cards) {
+      const cx = c.x + c.w/2, cy = c.y + c.h/2;
+      let dx = cx - px, dy = cy - py, dist = Math.hypot(dx,dy)||1;
+      if (dist < R) {
+        const f = (1 - dist/R) * 30;
+        c.vx += dx/dist * f; c.vy += dy/dist * f;
+        c.vrot += (Math.random()-0.5)*12;
+      }
+    }
+    burst(e.clientX, e.clientY, 12);
+  });
+
+  function closeFolder(fileEl) {
+    cancelAnimationFrame(physRAF); physRAF = null;
+    // suck the cards back to nothing
+    for (const c of cards) {
+      c.el.style.transition = 'transform .32s ease, opacity .32s ease';
+      c.el.style.transform += ' scale(0)';
+      c.el.style.opacity = '0';
+    }
+    setTimeout(() => {
+      stage.classList.add('hidden');
+      stage.innerHTML = '';
+      cards = [];
+      document.querySelectorAll('.file').forEach(el => el.classList.remove('gone'));
+      fileEl.classList.remove('as-exit');
+      fileEl.querySelector('.ficon').textContent = fileEl.dataset.icon;
+      fileEl.querySelector('.fname').textContent = fileEl.dataset.label;
+      fileEl.querySelector('.fcount').textContent = fileEl.dataset.count + ' game' + (fileEl.dataset.count==='1'?'':'s');
+      hint.textContent = '▸ open a folder';
+      hint.classList.remove('gone');
+      openId = null;
+    }, 340);
   }
 
   document.getElementById('year').textContent = new Date().getFullYear();
